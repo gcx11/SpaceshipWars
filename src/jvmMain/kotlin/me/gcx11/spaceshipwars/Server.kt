@@ -2,6 +2,7 @@ package me.gcx11.spaceshipwars
 
 import io.ktor.application.call
 import io.ktor.application.install
+import io.ktor.html.insert
 import io.ktor.html.respondHtml
 import io.ktor.http.cio.websocket.*
 import io.ktor.http.content.resource
@@ -18,11 +19,15 @@ import kotlinx.coroutines.launch
 import kotlinx.html.*
 import me.gcx11.spaceshipwars.events.PacketEvent
 import me.gcx11.spaceshipwars.events.packetEventHandler
+import me.gcx11.spaceshipwars.models.Spaceship
+import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.networking.ClientConnection
 import me.gcx11.spaceshipwars.packets.*
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.random.Random
 
 val clients = CopyOnWriteArrayList<ClientConnection>()
+val rnd = Random.Default
 
 fun main() {
     launchGameloop()
@@ -59,8 +64,8 @@ fun main() {
 
             webSocket("/ws") {
                 val client = ClientConnection()
-                clients.add(client)
                 send(Frame.Binary(true, serialize(ClientJoinPacket(client.id))))
+                clients.add(client)
 
                 for (frame in incoming) {
                     when (frame) {
@@ -83,8 +88,48 @@ fun main() {
 
 fun launchGameloop() {
     packetEventHandler += { event ->
-        if (event.packet is NoopPacket) {
-            // ingore
+        val packet = event.packet
+
+        if (packet is NoopPacket) {
+            // ignore
+        }
+
+        if (packet is RespawnRequestPacket) {
+            val client = clients.find { it.id == packet.clientId }!!
+            for (entity in World.entities) {
+                if (entity !is Spaceship) continue
+
+                client.sendPacket(SpaceshipSpawnPacket(
+                    0, entity.id, entity.x, entity.y
+                ))
+            }
+
+            val spaceship = Spaceship(packet.clientId, rnd.nextFloat() * 400.0f, rnd.nextFloat() * 400.0f)
+            World.entities.add(spaceship)
+
+            clients.forEach {
+                it.sendPacket(SpaceshipSpawnPacket(
+                    if (it.id == packet.clientId) packet.clientId else 0, spaceship.id, spaceship.x, spaceship.y
+                ))
+            }
+        }
+
+        if (packet is MoveRequestPacket) {
+            val entity = World.entities.find { it.id == packet.entityId }
+            if (entity != null && entity is Spaceship) {
+                when (packet.direction) {
+                    0 -> entity.y -= 10f
+                    1 -> entity.y += 10f
+                    2 -> entity.x -= 10f
+                    3 -> entity.x += 10f
+                }
+
+                clients.forEach {
+                    it.sendPacket(SpaceshipPositionPacket(
+                        entity.id, entity.x, entity.y
+                    ))
+                }
+            }
         }
     }
 
