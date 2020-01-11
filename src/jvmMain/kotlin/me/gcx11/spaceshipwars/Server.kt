@@ -12,12 +12,21 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.websocket.WebSockets
 import io.ktor.websocket.webSocket
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.html.*
-import me.gcx11.spaceshipwars.packets.NumberPacket
-import me.gcx11.spaceshipwars.packets.deserialize
-import me.gcx11.spaceshipwars.packets.serialize
+import me.gcx11.spaceshipwars.events.PacketEvent
+import me.gcx11.spaceshipwars.events.packetEventHandler
+import me.gcx11.spaceshipwars.networking.ClientConnection
+import me.gcx11.spaceshipwars.packets.*
+import java.util.concurrent.CopyOnWriteArrayList
+
+val clients = CopyOnWriteArrayList<ClientConnection>()
 
 fun main() {
+    launchGameloop()
+
     embeddedServer(Netty, port = 8080, host = "127.0.0.1") {
         install(WebSockets)
 
@@ -49,22 +58,19 @@ fun main() {
             }
 
             webSocket("/ws") {
-                loop@ for (frame in incoming) {
+                val client = ClientConnection()
+                clients.add(client)
+                send(Frame.Binary(true, serialize(ClientJoinPacket(client.id))))
+
+                for (frame in incoming) {
                     when (frame) {
                         is Frame.Binary -> {
-                            val incomingPacket = deserialize(frame.readBytes()) as NumberPacket
-                            var number = incomingPacket.number
-
-                            println("Received from client: $number")
-
-                            if (number > 1024) {
-                                close(CloseReason(CloseReason.Codes.NORMAL, "Bye"))
-                                break@loop
-                            }
-
-                            outgoing.send(Frame.Binary(true, serialize(NumberPacket(++number))))
+                            val incomingPacket = deserialize(frame.readBytes())!!
+                            PacketQueue.incoming.push(incomingPacket)
                         }
                     }
+
+                    send(Frame.Binary(true, serialize(client.getNextPacket())))
                 }
             }
 
@@ -73,4 +79,29 @@ fun main() {
             }
         }
     }.start(wait = true)
+}
+
+fun launchGameloop() {
+    packetEventHandler += { event ->
+        if (event.packet is NoopPacket) {
+            // ingore
+        }
+    }
+
+    GlobalScope.launch {
+        while (true) {
+            val packets = PacketQueue.incoming.freeze()
+
+            for (packet in packets) {
+                processPacket(packet)
+            }
+
+            PacketQueue.incoming.unfreeze()
+            delay(10L)
+        }
+    }
+}
+
+fun processPacket(packet: Packet) {
+    packetEventHandler(PacketEvent(packet))
 }

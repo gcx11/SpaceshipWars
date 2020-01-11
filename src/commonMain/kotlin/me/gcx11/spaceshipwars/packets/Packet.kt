@@ -5,20 +5,44 @@ import kotlinx.io.core.buildPacket
 import kotlinx.io.core.readBytes
 
 sealed class Packet(val id: Byte)
-class NumberPacket(val number: Long): Packet(1)
-class SpawnRequestPacket: Packet(2)
-class SpawnResponsePacket(val entityId: Int, val x: Float, val y: Float): Packet(3)
+class NoopPacket(val clientId: Long): Packet(1)
+class ClientJoinPacket(val clientId: Long): Packet(2)
+class RespawnRequestPacket(val clientId: Long): Packet(3)
+class SpaceshipSpawnPacket(val entityId: Long, val x: Float, val y: Float): Packet(4)
+class SpaceshipPositionPacket(val entityId: Long, val x: Float, val y: Float): Packet(5)
 
 private val pool = IoBuffer.Pool
 
 fun serialize(packet: Packet): ByteArray {
     return when (packet) {
-        is NumberPacket -> withBuffer {
+        is NoopPacket -> withBuffer {
             writeByte(packet.id)
-            writeLong(packet.number)
+            writeLong(packet.clientId)
         }
 
-        else -> ByteArray(0)
+        is ClientJoinPacket -> withBuffer {
+            writeByte(packet.id)
+            writeLong(packet.clientId)
+        }
+
+        is RespawnRequestPacket -> withBuffer {
+            writeByte(packet.id)
+            writeLong(packet.clientId)
+        }
+
+        is SpaceshipSpawnPacket -> withBuffer {
+            writeByte(packet.id)
+            writeLong(packet.entityId)
+            writeFloat(packet.x)
+            writeFloat(packet.y)
+        }
+
+        is SpaceshipPositionPacket -> withBuffer {
+            writeByte(packet.id)
+            writeLong(packet.entityId)
+            writeFloat(packet.x)
+            writeFloat(packet.y)
+        }
     }
 }
 
@@ -33,7 +57,23 @@ fun deserialize(byteArray: ByteArray): Packet? {
         val id = readByte()
         packet = when (id) {
             1.toByte() -> {
-                NumberPacket(readLong())
+                NoopPacket(readLong())
+            }
+
+            2.toByte() -> {
+                ClientJoinPacket(readLong())
+            }
+
+            3.toByte() -> {
+                RespawnRequestPacket(readLong())
+            }
+
+            4.toByte() -> {
+                SpaceshipSpawnPacket(readLong(), readFloat(), readFloat())
+            }
+
+            5.toByte() -> {
+                SpaceshipPositionPacket(readLong(), readFloat(), readFloat())
             }
 
             else -> null
