@@ -32,7 +32,7 @@ val rnd = Random.Default
 fun main() {
     launchGameloop()
 
-    embeddedServer(Netty, port = 8080, host = "0.0.0.0") {
+    embeddedServer(Netty, port = serverPort, host = serverIp) {
         install(WebSockets)
 
         routing {
@@ -142,7 +142,7 @@ fun launchGameloop() {
             }
 
             PacketQueue.incoming.unfreeze()
-            delay(10L)
+            delay(sleepTime)
         }
     }
 }

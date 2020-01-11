@@ -137,7 +137,7 @@ fun launchGameloop(context: CanvasRenderingContext2D) {
 
             clearCanvas(context)
             draw(context)
-            delay(10L)
+            delay(sleepTime)
         }
     }
 }
@@ -155,8 +155,8 @@ fun launchNetworking() {
 
         client.ws(
             method = HttpMethod.Get,
-            host = "127.0.0.1",
-            port = 8080, path = "/ws"
+            host = serverIp,
+            port = serverPort, path = "/ws"
         ) {
             for (frame in incoming) {
                 when (frame) {
