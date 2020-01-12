@@ -2,7 +2,6 @@ package me.gcx11.spaceshipwars
 
 import io.ktor.application.call
 import io.ktor.application.install
-import io.ktor.html.insert
 import io.ktor.html.respondHtml
 import io.ktor.http.cio.websocket.*
 import io.ktor.http.content.resource
@@ -57,6 +56,16 @@ fun main() {
                         }
                     }
                     body {
+                        script(src = "/static/kotlin.js") {}
+                        script(src = "/static/kotlinx-io.js") {}
+                        script(src = "/static/kotlinx-coroutines-core.js") {}
+                        script(src = "/static/kotlinx-io-kotlinx-coroutines-io.js") {}
+                        script(src = "/static/ktor-ktor-utils.js") {}
+                        script(src = "/static/kotlinx-atomicfu.js") {}
+                        script(src = "/static/ktor-ktor-http.js") {}
+                        script(src = "/static/ktor-ktor-http-cio.js") {}
+                        script(src = "/static/ktor-ktor-client-core.js") {}
+                        script(src = "/static/ktor-ktor-client-js.js") {}
                         script(src = "/static/SpaceshipWars.js") {}
                     }
                 }
@@ -80,7 +89,28 @@ fun main() {
             }
 
             static("/static") {
+                resource("kotlin.js")
+                resource("kotlin.js.map")
+                resource("kotlinx-atomicfu.js")
+                resource("kotlinx-atomicfu.js.map")
+                resource("kotlinx-coroutines-core.js")
+                resource("kotlinx-coroutines-core.js.map")
+                resource("kotlinx-io-kotlinx-coroutines-io.js")
+                resource("kotlinx-io-kotlinx-coroutines-io.js.map")
+                resource("kotlinx-io.js")
+                resource("kotlinx-io.js.map")
+                resource("ktor-ktor-client-core.js")
+                resource("ktor-ktor-client-core.js.map")
+                resource("ktor-ktor-client-js.js")
+                resource("ktor-ktor-client-js.js.map")
+                resource("ktor-ktor-http-cio.js")
+                resource("ktor-ktor-http-cio.js.map")
+                resource("ktor-ktor-http.js")
+                resource("ktor-ktor-http.js.map")
+                resource("ktor-ktor-utils.js")
+                resource("ktor-ktor-utils.js.map")
                 resource("SpaceshipWars.js")
+                resource("SpaceshipWars.js.map")
             }
         }
     }.start(wait = true)
