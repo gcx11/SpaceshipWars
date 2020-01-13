@@ -78,9 +78,18 @@ kotlin {
     }
 }
 
+runDceJsKotlin {
+    dceOptions {
+        outputDirectory = "${rootProject.buildDir}/js/packages/${rootProject.name}/kotlin-dce"
+    }
+}
+
+jsBrowserWebpack.dependsOn runDceJsKotlin
+jsBrowserRun.dependsOn runDceJsKotlin
+
 jvmJar {
-    dependsOn(runDceJsKotlin)
-    from("build/kotlin-js-min/js/main")
+    dependsOn(jsBrowserWebpack)
+    from(new File(jsBrowserWebpack.entry.name, jsBrowserWebpack.outputPath))
 }
 
 task run(type: JavaExec, dependsOn: [jvmJar]) {
