@@ -16,10 +16,12 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.html.*
+import me.gcx11.spaceshipwars.events.Event
 import me.gcx11.spaceshipwars.events.PacketEvent
 import me.gcx11.spaceshipwars.events.packetEventHandler
 import me.gcx11.spaceshipwars.models.Spaceship
 import me.gcx11.spaceshipwars.models.World
+import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ClientConnection
 import me.gcx11.spaceshipwars.packets.*
 import java.util.concurrent.CopyOnWriteArrayList
@@ -70,12 +72,15 @@ fun main() {
                     when (frame) {
                         is Frame.Binary -> {
                             val incomingPacket = deserialize(frame.readBytes())!!
-                            PacketQueue.incoming.push(incomingPacket)
+                            globalEventQueue.push(PacketEvent(incomingPacket))
                         }
                     }
 
                     send(Frame.Binary(true, serialize(client.getNextPacket())))
                 }
+
+                // handle disconnect
+                clients.remove(client)
             }
 
             static("/static") {
@@ -86,32 +91,31 @@ fun main() {
 }
 
 fun launchGameloop() {
+    registerEventHandlers()
+
+    GlobalScope.launch {
+        while (true) {
+            val events = globalEventQueue.freeze()
+
+            for (event in events) {
+                processEvent(event)
+            }
+
+            globalEventQueue.unfreeze()
+            delay(sleepTime)
+        }
+    }
+}
+
+fun processEvent(event: Event) {
+    when (event) {
+        is PacketEvent -> packetEventHandler(event)
+    }
+}
+
+fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
-
-        if (packet is NoopPacket) {
-            // ignore
-        }
-
-        if (packet is RespawnRequestPacket) {
-            val client = clients.find { it.id == packet.clientId }!!
-            for (entity in World.entities) {
-                if (entity !is Spaceship) continue
-
-                client.sendPacket(SpaceshipSpawnPacket(
-                    0, entity.id, entity.x, entity.y
-                ))
-            }
-
-            val spaceship = Spaceship(packet.clientId, rnd.nextFloat() * 400.0f, rnd.nextFloat() * 400.0f)
-            World.entities.add(spaceship)
-
-            clients.forEach {
-                it.sendPacket(SpaceshipSpawnPacket(
-                    if (it.id == packet.clientId) packet.clientId else 0, spaceship.id, spaceship.x, spaceship.y
-                ))
-            }
-        }
 
         if (packet is MoveRequestPacket) {
             val entity = World.entities.find { it.id == packet.entityId }
@@ -132,20 +136,27 @@ fun launchGameloop() {
         }
     }
 
-    GlobalScope.launch {
-        while (true) {
-            val packets = PacketQueue.incoming.freeze()
+    packetEventHandler += { event ->
+        val packet = event.packet
 
-            for (packet in packets) {
-                processPacket(packet)
+        if (packet is RespawnRequestPacket) {
+            val client = clients.find { it.id == packet.clientId }!!
+            for (entity in World.entities) {
+                if (entity !is Spaceship) continue
+
+                client.sendPacket(SpaceshipSpawnPacket(
+                    0, entity.id, entity.x, entity.y
+                ))
             }
 
-            PacketQueue.incoming.unfreeze()
-            delay(sleepTime)
+            val spaceship = Spaceship(packet.clientId, rnd.nextFloat() * 400.0f, rnd.nextFloat() * 400.0f)
+            World.entities.add(spaceship)
+
+            clients.forEach {
+                it.sendPacket(SpaceshipSpawnPacket(
+                    if (it.id == packet.clientId) packet.clientId else 0, spaceship.id, spaceship.x, spaceship.y
+                ))
+            }
         }
     }
-}
-
-fun processPacket(packet: Packet) {
-    packetEventHandler(PacketEvent(packet))
 }

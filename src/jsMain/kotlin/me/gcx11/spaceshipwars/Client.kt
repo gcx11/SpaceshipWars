@@ -11,10 +11,10 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.awaitAnimationFrame
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import me.gcx11.spaceshipwars.events.PacketEvent
-import me.gcx11.spaceshipwars.events.packetEventHandler
+import me.gcx11.spaceshipwars.events.*
 import me.gcx11.spaceshipwars.models.Spaceship
 import me.gcx11.spaceshipwars.models.World
+import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ServerConnection
 import me.gcx11.spaceshipwars.packets.*
 import org.w3c.dom.CanvasRenderingContext2D
@@ -23,7 +23,6 @@ import kotlin.browser.document
 import kotlin.browser.window
 
 val serverConnection = ServerConnection()
-val pressedKeys = mutableSetOf<String>()
 
 fun main() {
     window.onload = {
@@ -33,7 +32,7 @@ fun main() {
     }
 
     window.onkeypress = { event ->
-        pressedKeys.add(event.key)
+        globalEventQueue.push(KeyPressEvent(event.key))
     }
 }
 
@@ -76,13 +75,61 @@ fun drawSpaceShip(spaceship: Spaceship, context: CanvasRenderingContext2D) {
 }
 
 fun launchGameloop(context: CanvasRenderingContext2D) {
-    packetEventHandler += { event ->
-        val packet = event.packet
-        if (packet is NoopPacket) {
-            // do nothing
+    registerEventHandlers()
+
+    GlobalScope.launch {
+        while (true) {
+            window.awaitAnimationFrame()
+            val events = globalEventQueue.freeze()
+
+            for (event in events) {
+                processEvent(event)
+            }
+
+            globalEventQueue.unfreeze()
+
+            clearCanvas(context)
+            draw(context)
+            delay(sleepTime)
         }
     }
+}
 
+fun processEvent(event: Event) {
+    when (event) {
+        is PacketEvent -> packetEventHandler(event)
+        is KeyPressEvent -> keyPressEventHandler(event)
+    }
+}
+
+@UseExperimental(KtorExperimentalAPI::class)
+fun launchNetworking() {
+    GlobalScope.launch {
+        val client = HttpClient(Js) {
+            install(WebSockets)
+        }
+
+        client.ws(
+            method = HttpMethod.Get,
+            host = serverIp,
+            port = serverPort, path = "/ws"
+        ) {
+            for (frame in incoming) {
+                when (frame) {
+                    is Frame.Binary -> {
+                        val incomingPacket = deserialize(frame.readBytes())!!
+                        globalEventQueue.push(PacketEvent(incomingPacket))
+                    }
+                }
+
+                val packet = serverConnection.getNextPacket()
+                send(Frame.Binary(true, serialize(packet)))
+            }
+        }
+    }
+}
+
+fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is ClientJoinPacket) {
@@ -109,65 +156,15 @@ fun launchGameloop(context: CanvasRenderingContext2D) {
         }
     }
 
-    GlobalScope.launch {
-        while (true) {
-            window.awaitAnimationFrame()
-            val packets = PacketQueue.incoming.freeze()
+    keyPressEventHandler += { event ->
+        val spaceShip = World.entities.find { it is Spaceship && it.clientId == serverConnection.id }
 
-            for (packet in packets) {
-                processPacket(packet)
-            }
-
-            val spaceShip = World.entities.find { it is Spaceship && it.clientId == serverConnection.id }
-
-            if (spaceShip != null) {
-                if ("w" in pressedKeys) {
-                    serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 0))
-                } else if ("s" in pressedKeys) {
-                    serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 1))
-                } else if ("a" in pressedKeys) {
-                    serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 2))
-                } else if ("d" in pressedKeys) {
-                    serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 3))
-                }
-            }
-            pressedKeys.clear()
-
-            PacketQueue.incoming.unfreeze()
-
-            clearCanvas(context)
-            draw(context)
-            delay(sleepTime)
-        }
-    }
-}
-
-fun processPacket(packet: Packet) {
-    packetEventHandler(PacketEvent(packet))
-}
-
-@UseExperimental(KtorExperimentalAPI::class)
-fun launchNetworking() {
-    GlobalScope.launch {
-        val client = HttpClient(Js) {
-            install(WebSockets)
-        }
-
-        client.ws(
-            method = HttpMethod.Get,
-            host = serverIp,
-            port = serverPort, path = "/ws"
-        ) {
-            for (frame in incoming) {
-                when (frame) {
-                    is Frame.Binary -> {
-                        val incomingPacket = deserialize(frame.readBytes())!!
-                        PacketQueue.incoming.push(incomingPacket)
-                    }
-                }
-
-                val packet = serverConnection.getNextPacket()
-                send(Frame.Binary(true, serialize(packet)))
+        if (spaceShip != null) {
+            when (event.key) {
+                "w" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 0))
+                "s" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 1))
+                "a" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 2))
+                "d" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 3))
             }
         }
     }
