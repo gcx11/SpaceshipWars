@@ -1,3 +1,5 @@
 package me.gcx11.spaceshipwars.events
 
-class ClientConnectEvent: Event()
+class ClientConnectEvent(
+    val clientId: Long
+): Event()

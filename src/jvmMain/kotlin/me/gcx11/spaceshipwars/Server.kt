@@ -16,9 +16,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.html.*
-import me.gcx11.spaceshipwars.events.Event
-import me.gcx11.spaceshipwars.events.PacketEvent
-import me.gcx11.spaceshipwars.events.packetEventHandler
+import me.gcx11.spaceshipwars.events.*
 import me.gcx11.spaceshipwars.models.Spaceship
 import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.models.globalEventQueue
@@ -67,6 +65,7 @@ fun main() {
                 val client = ClientConnection()
                 send(Frame.Binary(true, serialize(ClientJoinPacket(client.id))))
                 clients.add(client)
+                globalEventQueue.push(ClientConnectEvent(client.id))
 
                 for (frame in incoming) {
                     when (frame) {
@@ -81,6 +80,7 @@ fun main() {
 
                 // handle disconnect
                 clients.remove(client)
+                globalEventQueue.push(ClientDisconnectEvent(client.id))
             }
 
             static("/static") {
@@ -110,6 +110,7 @@ fun launchGameloop() {
 fun processEvent(event: Event) {
     when (event) {
         is PacketEvent -> packetEventHandler(event)
+        is ClientDisconnectEvent -> clientDisconnectEventHandler(event)
     }
 }
 
@@ -158,5 +159,17 @@ fun registerEventHandlers() {
                 ))
             }
         }
+    }
+
+    clientDisconnectEventHandler += { event ->
+        val clientEntity = World.entities.find { it is Spaceship && it.clientId == event.clientId }
+
+        if (clientEntity != null) {
+            clients.forEach {
+                it.sendPacket(EntityRemovePacket(clientEntity.id))
+            }
+        }
+
+        World.entities.remove(clientEntity)
     }
 }

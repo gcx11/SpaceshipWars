@@ -156,6 +156,13 @@ fun registerEventHandlers() {
         }
     }
 
+    packetEventHandler += { event ->
+        val packet = event.packet
+        if (packet is EntityRemovePacket) {
+            World.entities.removeAll { it.id == packet.entityId }
+        }
+    }
+
     keyPressEventHandler += { event ->
         val spaceShip = World.entities.find { it is Spaceship && it.clientId == serverConnection.id }
 

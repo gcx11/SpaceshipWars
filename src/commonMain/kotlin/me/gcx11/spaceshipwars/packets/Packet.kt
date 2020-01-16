@@ -11,6 +11,7 @@ class RespawnRequestPacket(val clientId: Long): Packet(3)
 class SpaceshipSpawnPacket(val clientId: Long, val entityId: Long, val x: Float, val y: Float): Packet(4)
 class SpaceshipPositionPacket(val entityId: Long, val x: Float, val y: Float): Packet(5)
 class MoveRequestPacket(val clientId: Long, val entityId: Long, val direction: Int): Packet(6)
+class EntityRemovePacket(val entityId: Long): Packet(7)
 
 private val pool = IoBuffer.Pool
 
@@ -52,6 +53,11 @@ fun serialize(packet: Packet): ByteArray {
             writeLong(packet.entityId)
             writeInt(packet.direction)
         }
+
+        is EntityRemovePacket -> withBuffer {
+            writeByte(packet.id)
+            writeLong(packet.entityId)
+        }
     }
 }
 
@@ -87,6 +93,10 @@ fun deserialize(byteArray: ByteArray): Packet? {
 
             6.toByte() -> {
                 MoveRequestPacket(readLong(), readLong(), readInt())
+            }
+
+            7.toByte() -> {
+                EntityRemovePacket(readLong())
             }
 
             else -> null

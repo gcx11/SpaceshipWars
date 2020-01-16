@@ -4,3 +4,5 @@ abstract class Event
 
 val packetEventHandler = EventHandler<PacketEvent>()
 val keyPressEventHandler = EventHandler<KeyPressEvent>()
+val clientConnectEventHandler = EventHandler<ClientConnectEvent>()
+val clientDisconnectEventHandler = EventHandler<ClientDisconnectEvent>()
