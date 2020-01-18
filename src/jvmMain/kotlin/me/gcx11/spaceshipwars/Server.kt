@@ -16,6 +16,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.html.*
+import me.gcx11.spaceshipwars.collections.retrieveAll
 import me.gcx11.spaceshipwars.events.*
 import me.gcx11.spaceshipwars.models.Spaceship
 import me.gcx11.spaceshipwars.models.World
@@ -162,14 +163,12 @@ fun registerEventHandlers() {
     }
 
     clientDisconnectEventHandler += { event ->
-        val clientEntity = World.entities.find { it is Spaceship && it.clientId == event.clientId }
+        val clientEntities = World.entities.retrieveAll { it is Spaceship && it.clientId == event.clientId }
 
-        if (clientEntity != null) {
-            clients.forEach {
-                it.sendPacket(EntityRemovePacket(clientEntity.id))
+        clients.forEach { client ->
+            clientEntities.forEach { entity ->
+                client.sendPacket(EntityRemovePacket(entity.id))
             }
         }
-
-        World.entities.remove(clientEntity)
     }
 }
