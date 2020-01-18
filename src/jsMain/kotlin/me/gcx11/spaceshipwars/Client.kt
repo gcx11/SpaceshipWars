@@ -11,8 +11,10 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.awaitAnimationFrame
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.gcx11.spaceshipwars.components.ClientComponent
+import me.gcx11.spaceshipwars.components.GeometricComponent
 import me.gcx11.spaceshipwars.events.*
-import me.gcx11.spaceshipwars.models.Spaceship
+import me.gcx11.spaceshipwars.models.Entity
 import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ServerConnection
@@ -63,15 +65,17 @@ fun draw(context: CanvasRenderingContext2D) {
     context.fillText("Client id: ${serverConnection.id}", 100.0, 100.0)
 
     for (entity in World.entities) {
-        if (entity is Spaceship) {
-            drawSpaceShip(entity, context)
-        }
+        drawSpaceShip(entity, context)
     }
 }
 
-fun drawSpaceShip(spaceship: Spaceship, context: CanvasRenderingContext2D) {
-    context.fillStyle = if (serverConnection.id == spaceship.clientId) "green" else "red"
-    context.fillRect(spaceship.x.toDouble(), spaceship.y.toDouble(), 50.0,50.0)
+fun drawSpaceShip(entity: Entity, context: CanvasRenderingContext2D) {
+    val clientComponent = entity.getOptionalComponent<ClientComponent>() ?: return
+    val geometricComponent = entity.getOptionalComponent<GeometricComponent>() ?: return
+
+    context.fillStyle = if (serverConnection.id == clientComponent.clientId) "green" else "red"
+
+    context.fillRect(geometricComponent.x.toDouble(), geometricComponent.y.toDouble(), 50.0,50.0)
 }
 
 fun launchGameloop(context: CanvasRenderingContext2D) {
@@ -141,7 +145,17 @@ fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is SpaceshipSpawnPacket) {
-            World.entities.add(Spaceship(packet.clientId, packet.entityId, packet.x, packet.y))
+            val spaceship = Entity().apply {
+                addComponent(ClientComponent(this, packet.clientId))
+                // TODO fix
+                addComponent(object: GeometricComponent {
+                    override var x = packet.x
+                    override var y = packet.y
+                    override val parent = this@apply
+                })
+            }
+
+            World.entities.add(spaceship)
         }
     }
 
@@ -149,9 +163,10 @@ fun registerEventHandlers() {
         val packet = event.packet
         if (packet is SpaceshipPositionPacket) {
             val entity = World.entities.find { it.id == packet.entityId }
-            if (entity != null && entity is Spaceship) {
-                entity.x = packet.x
-                entity.y = packet.y
+            val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
+            if (geometricComponent != null) {
+                geometricComponent.x = packet.x
+                geometricComponent.y = packet.y
             }
         }
     }
@@ -164,7 +179,7 @@ fun registerEventHandlers() {
     }
 
     keyPressEventHandler += { event ->
-        val spaceShip = World.entities.find { it is Spaceship && it.clientId == serverConnection.id }
+        val spaceShip = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
 
         if (spaceShip != null) {
             when (event.key) {
