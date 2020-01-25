@@ -20,11 +20,11 @@ import me.gcx11.spaceshipwars.collections.retrieveAll
 import me.gcx11.spaceshipwars.components.ClientComponent
 import me.gcx11.spaceshipwars.components.GeometricComponent
 import me.gcx11.spaceshipwars.events.*
-import me.gcx11.spaceshipwars.models.Entity
 import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ClientConnection
 import me.gcx11.spaceshipwars.packets.*
+import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.random.Random
 
@@ -113,6 +113,7 @@ fun launchGameloop() {
 fun processEvent(event: Event) {
     when (event) {
         is PacketEvent -> packetEventHandler(event)
+        is ClientConnectEvent -> clientConnectEventHandler(event)
         is ClientDisconnectEvent -> clientDisconnectEventHandler(event)
     }
 }
@@ -134,9 +135,9 @@ fun registerEventHandlers() {
                 }
 
                 clients.forEach {
-                    it.sendPacket(SpaceshipPositionPacket(
-                        entity.id, geometricComponent.x, geometricComponent.y
-                    ))
+                    it.sendPacket(
+                        SpaceshipPositionPacket(entity.id, geometricComponent.x, geometricComponent.y)
+                    )
                 }
             }
         }
@@ -150,28 +151,22 @@ fun registerEventHandlers() {
             for (entity in World.entities) {
                 val geometricComponent = entity.getOptionalComponent<GeometricComponent>() ?: continue
 
-                client.sendPacket(SpaceshipSpawnPacket(
-                    0, entity.id, geometricComponent.x, geometricComponent.y
-                ))
+                client.sendPacket(
+                    SpaceshipSpawnPacket(0, entity.id, geometricComponent.x, geometricComponent.y)
+                )
             }
 
             val x = rnd.nextFloat() * 400.0f
             val y = rnd.nextFloat() * 400.0f
-            val spaceship = Entity().apply {
-                addComponent(ClientComponent(this, packet.clientId))
-                // TODO fix
-                addComponent(object: GeometricComponent {
-                    override var x = x
-                    override var y = y
-                    override val parent = this@apply
-                })
-            }
+            val spaceship = SpaceshipFactory.create(x, y, packet.clientId)
             World.entities.add(spaceship)
 
             clients.forEach {
-                it.sendPacket(SpaceshipSpawnPacket(
-                    if (it.id == packet.clientId) packet.clientId else 0, spaceship.id, x, y
-                ))
+                it.sendPacket(
+                    SpaceshipSpawnPacket(
+                        if (it.id == packet.clientId) packet.clientId else 0, spaceship.id, x, y
+                    )
+                )
             }
         }
     }
@@ -186,5 +181,13 @@ fun registerEventHandlers() {
                 client.sendPacket(EntityRemovePacket(entity.id))
             }
         }
+    }
+
+    clientConnectEventHandler += { event ->
+        println("Client ${event.clientId} connected!")
+    }
+
+    clientDisconnectEventHandler += { event ->
+        println("Client ${event.clientId} disconnected!")
     }
 }

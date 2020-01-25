@@ -5,13 +5,13 @@ import kotlinx.io.core.buildPacket
 import kotlinx.io.core.readBytes
 
 sealed class Packet(val id: Byte)
-class NoopPacket(val clientId: Long): Packet(1)
-class ClientJoinPacket(val clientId: Long): Packet(2)
-class RespawnRequestPacket(val clientId: Long): Packet(3)
-class SpaceshipSpawnPacket(val clientId: Long, val entityId: Long, val x: Float, val y: Float): Packet(4)
-class SpaceshipPositionPacket(val entityId: Long, val x: Float, val y: Float): Packet(5)
-class MoveRequestPacket(val clientId: Long, val entityId: Long, val direction: Int): Packet(6)
-class EntityRemovePacket(val entityId: Long): Packet(7)
+data class NoopPacket(val clientId: Long): Packet(1)
+data class ClientJoinPacket(val clientId: Long): Packet(2)
+data class RespawnRequestPacket(val clientId: Long): Packet(3)
+data class SpaceshipSpawnPacket(val clientId: Long, val entityId: Long, val x: Float, val y: Float): Packet(4)
+data class SpaceshipPositionPacket(val entityId: Long, val x: Float, val y: Float): Packet(5)
+data class MoveRequestPacket(val clientId: Long, val entityId: Long, val direction: Int): Packet(6)
+data class EntityRemovePacket(val entityId: Long): Packet(7)
 
 private val pool = IoBuffer.Pool
 
