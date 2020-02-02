@@ -14,13 +14,9 @@ actual object SpaceshipFactory {
                     clientId
                 )
             )
-            // TODO fix
-            addComponent(object : GeometricComponent {
-                override var x = x
-                override var y = y
-                override val parent = this@apply
-                override val shape get() = Point(x, y)
-            })
+            addComponent(GeometricComponent(this, x, y, 20f, 20f, 20f, 0f))
+        }.apply {
+            this.externalId = this.internalId
         }
     }
 }

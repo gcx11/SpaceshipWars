@@ -123,20 +123,20 @@ fun registerEventHandlers() {
         val packet = event.packet
 
         if (packet is MoveRequestPacket) {
-            val entity = World.entities.find { it.id == packet.entityId }
+            val entity = World.entities.find { it.externalId == packet.entityId }
 
             val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
             if (geometricComponent != null) {
                 when (packet.direction) {
-                    0 -> geometricComponent.y -= 10f
-                    1 -> geometricComponent.y += 10f
+                    0 -> geometricComponent.y += 10f
+                    1 -> geometricComponent.y -= 10f
                     2 -> geometricComponent.x -= 10f
                     3 -> geometricComponent.x += 10f
                 }
 
                 clients.forEach {
                     it.sendPacket(
-                        SpaceshipPositionPacket(entity.id, geometricComponent.x, geometricComponent.y)
+                        SpaceshipPositionPacket(entity.externalId, geometricComponent.x, geometricComponent.y)
                     )
                 }
             }
@@ -152,7 +152,7 @@ fun registerEventHandlers() {
                 val geometricComponent = entity.getOptionalComponent<GeometricComponent>() ?: continue
 
                 client.sendPacket(
-                    SpaceshipSpawnPacket(0, entity.id, geometricComponent.x, geometricComponent.y)
+                    SpaceshipSpawnPacket(0, entity.externalId, geometricComponent.x, geometricComponent.y)
                 )
             }
 
@@ -164,7 +164,7 @@ fun registerEventHandlers() {
             clients.forEach {
                 it.sendPacket(
                     SpaceshipSpawnPacket(
-                        if (it.id == packet.clientId) packet.clientId else 0, spaceship.id, x, y
+                        if (it.id == packet.clientId) packet.clientId else 0, spaceship.externalId, x, y
                     )
                 )
             }
@@ -178,7 +178,7 @@ fun registerEventHandlers() {
 
         clients.forEach { client ->
             clientEntities.forEach { entity ->
-                client.sendPacket(EntityRemovePacket(entity.id))
+                client.sendPacket(EntityRemovePacket(entity.externalId))
             }
         }
     }

@@ -3,7 +3,8 @@ package me.gcx11.spaceshipwars.models
 import me.gcx11.spaceshipwars.components.Component
 
 class Entity(
-    var id: Long = 0,
+    var internalId: Long = 0,
+    var externalId: Long = 0,
     val components: MutableList<Component> = mutableListOf()
 ) {
     companion object {
@@ -11,11 +12,11 @@ class Entity(
     }
 
     init {
-        id = ++currentId
+        internalId = ++currentId
     }
 
-    constructor(entityId: Long): this() {
-        this.id = entityId
+    constructor(externalId: Long): this() {
+        this.externalId = externalId
     }
 
     fun addComponent(component: Component) {
@@ -45,7 +46,7 @@ class Entity(
 
     override fun toString(): String {
         return buildString {
-            append("Entity $id with ")
+            append("Entity $externalId with ")
             components.forEach {
                 append("\n\t")
                 append(it.toString())

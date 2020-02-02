@@ -66,6 +66,12 @@ fun draw(context: CanvasRenderingContext2D) {
     context.fillStyle = "white"
     context.fillText("Client id: ${serverConnection.id}", 100.0, 100.0)
 
+    val player = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
+    val geometricComponent = player?.getOptionalComponent<GeometricComponent>()
+    if (geometricComponent != null) {
+        Camera.centerAt(geometricComponent.x, geometricComponent.y)
+    }
+
     for (entity in World.entities) {
         val renderableComponent = entity.getOptionalComponent<RenderableComponent>()
         if (renderableComponent is ShapeRenderableComponent) {
@@ -76,6 +82,7 @@ fun draw(context: CanvasRenderingContext2D) {
 }
 
 fun launchGameloop(context: CanvasRenderingContext2D) {
+    Camera.setDimensions(context.canvas.width.toFloat(), context.canvas.height.toFloat())
     registerEventHandlers()
 
     GlobalScope.launch {
@@ -150,7 +157,7 @@ fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is SpaceshipPositionPacket) {
-            val entity = World.entities.find { it.id == packet.entityId }
+            val entity = World.entities.find { it.externalId == packet.entityId }
             val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
             if (geometricComponent != null) {
                 geometricComponent.x = packet.x
@@ -162,7 +169,7 @@ fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is EntityRemovePacket) {
-            World.entities.removeAll { it.id == packet.entityId }
+            World.entities.removeAll { it.externalId == packet.entityId }
         }
     }
 
@@ -171,10 +178,10 @@ fun registerEventHandlers() {
 
         if (spaceShip != null) {
             when (event.key) {
-                "w" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 0))
-                "s" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 1))
-                "a" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 2))
-                "d" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.id, 3))
+                "w" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.externalId, 0))
+                "s" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.externalId, 1))
+                "a" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.externalId, 2))
+                "d" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.externalId, 3))
             }
         }
     }
