@@ -1,8 +1,6 @@
 package me.gcx11.spaceshipwars.spaceship
 
 import me.gcx11.spaceshipwars.components.ClientComponent
-import me.gcx11.spaceshipwars.components.GeometricComponent
-import me.gcx11.spaceshipwars.geometry.Point
 import me.gcx11.spaceshipwars.models.Entity
 
 actual object SpaceshipFactory {
@@ -15,6 +13,7 @@ actual object SpaceshipFactory {
                 )
             )
             addComponent(GeometricComponent(this, x, y, 20f, 20f, 20f, 0f))
+            addComponent(MoveComponent(this))
         }.apply {
             this.externalId = this.internalId
         }

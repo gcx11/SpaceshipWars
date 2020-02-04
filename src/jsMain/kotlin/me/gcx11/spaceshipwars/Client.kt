@@ -25,6 +25,9 @@ import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 import kotlin.browser.document
 import kotlin.browser.window
+import kotlin.js.Date
+import kotlin.math.PI
+import kotlin.math.atan2
 
 val serverConnection = ServerConnection()
 
@@ -38,6 +41,15 @@ fun main() {
     window.onkeypress = { event ->
         globalEventQueue.push(KeyPressEvent(event.key))
     }
+
+    window.onmousemove = { event ->
+        updateMousePosition(event.x.toFloat(), event.y.toFloat())
+    }
+}
+
+fun updateMousePosition(x: Float, y: Float) {
+    MousePosition.x = x
+    MousePosition.y = y
 }
 
 fun createCanvas(): CanvasRenderingContext2D {
@@ -88,8 +100,10 @@ fun launchGameloop(context: CanvasRenderingContext2D) {
     GlobalScope.launch {
         while (true) {
             window.awaitAnimationFrame()
+            //globalEventQueue.push(GameTickEvent())
             val events = globalEventQueue.freeze()
 
+            processEvent(GameTickEvent())
             for (event in events) {
                 processEvent(event)
             }
@@ -107,6 +121,7 @@ fun processEvent(event: Event) {
     when (event) {
         is PacketEvent -> packetEventHandler(event)
         is KeyPressEvent -> keyPressEventHandler(event)
+        is GameTickEvent -> gameTickEventHandler(event)
     }
 }
 
@@ -122,16 +137,20 @@ fun launchNetworking() {
             host = serverIp,
             port = serverPort, path = "/ws"
         ) {
-            for (frame in incoming) {
-                when (frame) {
-                    is Frame.Binary -> {
-                        val incomingPacket = deserialize(frame.readBytes())!!
-                        globalEventQueue.push(PacketEvent(incomingPacket))
+            try {
+                for (frame in incoming) {
+                    when (frame) {
+                        is Frame.Binary -> {
+                            val incomingPacket = deserialize(frame.readBytes())!!
+                            globalEventQueue.push(PacketEvent(incomingPacket))
+                        }
                     }
-                }
 
-                val packet = serverConnection.getNextPacket()
-                send(Frame.Binary(true, serialize(packet)))
+                    val packet = serverConnection.getNextPacket()
+                    send(Frame.Binary(true, serialize(packet)))
+                }
+            } catch (ex: Exception) {
+                println("Error: ${ex.message}")
             }
         }
     }
@@ -158,10 +177,11 @@ fun registerEventHandlers() {
         val packet = event.packet
         if (packet is SpaceshipPositionPacket) {
             val entity = World.entities.find { it.externalId == packet.entityId }
-            val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
+            val geometricComponent = entity?.getOptionalComponent<me.gcx11.spaceshipwars.spaceship.GeometricComponent>()
             if (geometricComponent != null) {
                 geometricComponent.x = packet.x
                 geometricComponent.y = packet.y
+                geometricComponent.directionAngle = packet.direction
             }
         }
     }
@@ -173,16 +193,14 @@ fun registerEventHandlers() {
         }
     }
 
-    keyPressEventHandler += { event ->
+    gameTickEventHandler += { event ->
         val spaceShip = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
 
         if (spaceShip != null) {
-            when (event.key) {
-                "w" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.externalId, 0))
-                "s" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.externalId, 1))
-                "a" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.externalId, 2))
-                "d" -> serverConnection.sendPacket(MoveRequestPacket(serverConnection.id, spaceShip.externalId, 3))
-            }
+            val direction = atan2(MousePosition.x - Camera.width / 2f, MousePosition.y - Camera.height / 2f) + 3f * PI.toFloat() / 2f
+            serverConnection.sendPacket(MoveRequestPacket(
+                serverConnection.id, spaceShip.externalId, 0f, direction
+            ))
         }
     }
 }

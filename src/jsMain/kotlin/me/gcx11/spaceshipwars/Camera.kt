@@ -4,8 +4,11 @@ object Camera {
     private var x = 0f
     private var y = 0f
 
-    private var width = 0f
-    private var height = 0f
+    var width = 0f
+        private set
+
+    var height = 0f
+        private set
 
     fun centerAt(x: Float, y: Float) {
         this.x = x - width / 2f
@@ -19,5 +22,9 @@ object Camera {
 
     fun project(x: Float, y: Float): Pair<Float, Float> {
         return Pair(x - this.x, height - (y - this.y))
+    }
+
+    fun unproject(x: Float, y: Float): Pair<Float, Float> {
+        return Pair(x + this.x, height - (y - this.y))
     }
 }

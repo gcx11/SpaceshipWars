@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.html.*
 import me.gcx11.spaceshipwars.collections.retrieveAll
+import me.gcx11.spaceshipwars.components.BehaviourComponent
 import me.gcx11.spaceshipwars.components.ClientComponent
 import me.gcx11.spaceshipwars.components.GeometricComponent
 import me.gcx11.spaceshipwars.events.*
@@ -104,6 +105,22 @@ fun launchGameloop() {
                 processEvent(event)
             }
 
+            // TODO better delta
+            val delta = sleepTime / 1000f
+            for (entity in World.entities) {
+                entity.getAllComponents<BehaviourComponent>().forEach { it.update(delta) }
+
+                // TODO use MoveEvent
+                val geometricComponent = entity.getOptionalComponent<me.gcx11.spaceshipwars.spaceship.GeometricComponent>()
+                if (geometricComponent != null) {
+                    clients.forEach {
+                        it.sendPacket(
+                            SpaceshipPositionPacket(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle)
+                        )
+                    }
+                }
+            }
+
             globalEventQueue.unfreeze()
             delay(sleepTime)
         }
@@ -126,19 +143,8 @@ fun registerEventHandlers() {
             val entity = World.entities.find { it.externalId == packet.entityId }
 
             val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
-            if (geometricComponent != null) {
-                when (packet.direction) {
-                    0 -> geometricComponent.y += 10f
-                    1 -> geometricComponent.y -= 10f
-                    2 -> geometricComponent.x -= 10f
-                    3 -> geometricComponent.x += 10f
-                }
-
-                clients.forEach {
-                    it.sendPacket(
-                        SpaceshipPositionPacket(entity.externalId, geometricComponent.x, geometricComponent.y)
-                    )
-                }
+            if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent) {
+                geometricComponent.directionAngle = packet.direction
             }
         }
     }
