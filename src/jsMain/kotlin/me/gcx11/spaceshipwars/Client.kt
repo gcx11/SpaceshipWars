@@ -25,7 +25,6 @@ import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 import kotlin.browser.document
 import kotlin.browser.window
-import kotlin.js.Date
 import kotlin.math.PI
 import kotlin.math.atan2
 

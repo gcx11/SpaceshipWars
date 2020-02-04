@@ -1,5 +1,6 @@
 package me.gcx11.spaceshipwars.networking
 
+import me.gcx11.spaceshipwars.packets.MoveRequestPacket
 import me.gcx11.spaceshipwars.packets.NoopPacket
 import me.gcx11.spaceshipwars.packets.Packet
 
@@ -8,6 +9,15 @@ class ServerConnection {
     var id: Long = 0L
 
     fun sendPacket(packet: Packet) {
+        if (packet is MoveRequestPacket) {
+            for ((index, value) in packetBuffer.withIndex()) {
+                if (value is MoveRequestPacket && value.entityId == packet.entityId) {
+                    packetBuffer[index] = packet
+                    return
+                }
+            }
+        }
+
         packetBuffer.add(packet)
     }
 
