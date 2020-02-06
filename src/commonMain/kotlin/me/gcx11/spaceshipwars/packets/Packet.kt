@@ -9,9 +9,11 @@ data class NoopPacket(val clientId: Long): Packet(1)
 data class ClientJoinPacket(val clientId: Long): Packet(2)
 data class RespawnRequestPacket(val clientId: Long): Packet(3)
 data class SpaceshipSpawnPacket(val clientId: Long, val entityId: Long, val x: Float, val y: Float): Packet(4)
-data class SpaceshipPositionPacket(val entityId: Long, val x: Float, val y: Float, val direction: Float): Packet(5)
+data class SpaceshipPositionPacket(val positions: List<SpaceshipPosition>): Packet(5)
 data class MoveRequestPacket(val clientId: Long, val entityId: Long, val speed: Float, val direction: Float): Packet(6)
 data class EntityRemovePacket(val entityId: Long): Packet(7)
+
+data class SpaceshipPosition(val entityId: Long, val x: Float, val y: Float, val direction: Float)
 
 private val pool = IoBuffer.Pool
 
@@ -42,10 +44,13 @@ fun serialize(packet: Packet): ByteArray {
 
         is SpaceshipPositionPacket -> withBuffer {
             writeByte(packet.id)
-            writeLong(packet.entityId)
-            writeFloat(packet.x)
-            writeFloat(packet.y)
-            writeFloat(packet.direction)
+            writeInt(packet.positions.size)
+            for (position in packet.positions) {
+                writeLong(position.entityId)
+                writeFloat(position.x)
+                writeFloat(position.y)
+                writeFloat(position.direction)
+            }
         }
 
         is MoveRequestPacket -> withBuffer {
@@ -90,7 +95,12 @@ fun deserialize(byteArray: ByteArray): Packet? {
             }
 
             5.toByte() -> {
-                SpaceshipPositionPacket(readLong(), readFloat(), readFloat(), readFloat())
+                val size = readInt()
+                val positions = (0 until size).map {
+                    SpaceshipPosition(readLong(), readFloat(), readFloat(), readFloat())
+                }
+
+                SpaceshipPositionPacket(positions)
             }
 
             6.toByte() -> {

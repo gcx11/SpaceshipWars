@@ -29,7 +29,7 @@ class ClientConnection(
         if (packet is SpaceshipPositionPacket) {
             lock.withLock {
                 for ((index, value) in positionPackets.withIndex()) {
-                    if (value is SpaceshipPositionPacket && value.entityId == packet.entityId) {
+                    if (value is SpaceshipPositionPacket) {
                         positionPackets[index] = value
                         return
                     }

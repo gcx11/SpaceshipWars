@@ -107,18 +107,22 @@ fun launchGameloop() {
 
             // TODO better delta
             val delta = sleepTime / 1000f
+
+            val positions = mutableListOf<SpaceshipPosition>()
             for (entity in World.entities) {
                 entity.getAllComponents<BehaviourComponent>().forEach { it.update(delta) }
 
                 // TODO use MoveEvent
                 val geometricComponent = entity.getOptionalComponent<me.gcx11.spaceshipwars.spaceship.GeometricComponent>()
                 if (geometricComponent != null) {
-                    clients.forEach {
-                        it.sendPacket(
-                            SpaceshipPositionPacket(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle)
-                        )
-                    }
+                    positions.add(SpaceshipPosition(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle))
                 }
+            }
+
+            clients.forEach {
+                it.sendPacket(
+                    SpaceshipPositionPacket(positions)
+                )
             }
 
             globalEventQueue.unfreeze()

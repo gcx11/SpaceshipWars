@@ -175,12 +175,14 @@ fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is SpaceshipPositionPacket) {
-            val entity = World.entities.find { it.externalId == packet.entityId }
-            val geometricComponent = entity?.getOptionalComponent<me.gcx11.spaceshipwars.spaceship.GeometricComponent>()
-            if (geometricComponent != null) {
-                geometricComponent.x = packet.x
-                geometricComponent.y = packet.y
-                geometricComponent.directionAngle = packet.direction
+            for (position in packet.positions) {
+                val entity = World.entities.find { it.externalId == position.entityId }
+                val geometricComponent = entity?.getOptionalComponent<me.gcx11.spaceshipwars.spaceship.GeometricComponent>()
+                if (geometricComponent != null) {
+                    geometricComponent.x = position.x
+                    geometricComponent.y = position.y
+                    geometricComponent.directionAngle = position.direction
+                }
             }
         }
     }
