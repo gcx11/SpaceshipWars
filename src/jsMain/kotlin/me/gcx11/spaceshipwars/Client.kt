@@ -21,6 +21,7 @@ import me.gcx11.spaceshipwars.networking.ServerConnection
 import me.gcx11.spaceshipwars.packets.*
 import me.gcx11.spaceshipwars.spaceship.ShapeRenderableComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
+import me.gcx11.spaceshipwars.spaceship.SpaceshipRadarComponent
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 import kotlin.browser.document
@@ -43,6 +44,11 @@ fun main() {
 
     window.onmousemove = { event ->
         updateMousePosition(event.x.toFloat(), event.y.toFloat())
+    }
+
+    window.oncontextmenu = { event ->
+        event.preventDefault()
+        false
     }
 }
 
@@ -84,11 +90,16 @@ fun draw(context: CanvasRenderingContext2D) {
     }
 
     for (entity in World.entities) {
-        val renderableComponent = entity.getOptionalComponent<RenderableComponent>()
-        if (renderableComponent is ShapeRenderableComponent) {
-            renderableComponent.context = context
+        val renderableComponents = entity.getAllComponents<RenderableComponent>()
+        renderableComponents.forEach {
+            if (it is ShapeRenderableComponent) {
+                it.context = context
+            } else if (it is SpaceshipRadarComponent) {
+                it.context = context
+            }
+
+            it.draw()
         }
-        renderableComponent?.draw()
     }
 }
 
@@ -198,7 +209,7 @@ fun registerEventHandlers() {
         val spaceShip = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
 
         if (spaceShip != null) {
-            val direction = atan2(MousePosition.x - Camera.width / 2f, MousePosition.y - Camera.height / 2f) + 3f * PI.toFloat() / 2f
+            val direction = atan2(Camera.height / 2f - MousePosition.y, MousePosition.x - Camera.width / 2f)
             serverConnection.sendPacket(MoveRequestPacket(
                 serverConnection.id, spaceShip.externalId, 0f, direction
             ))

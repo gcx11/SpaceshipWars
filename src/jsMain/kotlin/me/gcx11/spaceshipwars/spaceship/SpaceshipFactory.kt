@@ -9,6 +9,7 @@ actual object SpaceshipFactory {
         return Entity(entityId).apply {
             addComponent(GeometricComponent(this, x, y, 20f, 20f, 20f, PI.toFloat() / 2f))
             addComponent(ShapeRenderableComponent(this))
+            addComponent(SpaceshipRadarComponent(this))
             addComponent(
                 ClientComponent(
                     this,
