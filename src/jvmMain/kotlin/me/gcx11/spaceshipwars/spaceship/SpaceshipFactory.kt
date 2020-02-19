@@ -14,6 +14,7 @@ actual object SpaceshipFactory {
             )
             addComponent(GeometricComponent(this, x, y, 20f, 20f, 20f, 0f))
             addComponent(MoveComponent(this))
+            addComponent(SpaceshipFireComponent(this))
         }.apply {
             this.externalId = this.internalId
         }

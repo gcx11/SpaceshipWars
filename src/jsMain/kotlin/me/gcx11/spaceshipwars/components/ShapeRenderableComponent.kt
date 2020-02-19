@@ -1,20 +1,16 @@
-package me.gcx11.spaceshipwars.spaceship
+package me.gcx11.spaceshipwars.components
 
 import me.gcx11.spaceshipwars.Camera
-import me.gcx11.spaceshipwars.components.ClientComponent
-import me.gcx11.spaceshipwars.components.GeometricComponent
-import me.gcx11.spaceshipwars.components.RenderableComponent
 import me.gcx11.spaceshipwars.models.Entity
-import me.gcx11.spaceshipwars.serverConnection
 import org.w3c.dom.CanvasRenderingContext2D
 
-class ShapeRenderableComponent(
+open class ShapeRenderableComponent(
     override val parent: Entity,
+    val fillStyle: FillStyle,
     var context: CanvasRenderingContext2D? = null
 ): RenderableComponent {
     override fun draw() {
         val ctx = context ?: return
-        val clientComponent = parent.getOptionalComponent<ClientComponent>() ?: return
         val geometricComponent = parent.getOptionalComponent<GeometricComponent>() ?: return
 
         val shape = geometricComponent.shape
@@ -34,7 +30,22 @@ class ShapeRenderableComponent(
 
         ctx.closePath()
 
-        ctx.fillStyle = if (serverConnection.id == clientComponent.clientId) "green" else "red"
-        ctx.fill()
+        when (fillStyle) {
+            FillStyle.OUTLINE -> {
+                ctx.strokeStyle = color()
+                ctx.stroke()
+            }
+
+            FillStyle.FULL -> {
+                ctx.fillStyle = color()
+                ctx.fill()
+            }
+        }
     }
+
+    open fun color(): String = "red"
+}
+
+enum class FillStyle {
+    OUTLINE, FULL
 }

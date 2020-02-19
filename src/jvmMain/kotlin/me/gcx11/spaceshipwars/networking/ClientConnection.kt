@@ -3,12 +3,9 @@ package me.gcx11.spaceshipwars.networking
 import kotlinx.atomicfu.locks.withLock
 import me.gcx11.spaceshipwars.packets.NoopPacket
 import me.gcx11.spaceshipwars.packets.Packet
-import me.gcx11.spaceshipwars.packets.SpaceshipPositionPacket
-import java.lang.IndexOutOfBoundsException
+import me.gcx11.spaceshipwars.packets.EntityPositionPacket
 import java.util.concurrent.ConcurrentLinkedDeque
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 
 class ClientConnection(
@@ -26,10 +23,10 @@ class ClientConnection(
     constructor(): this(counter.getAndIncrement())
 
     fun sendPacket(packet: Packet) {
-        if (packet is SpaceshipPositionPacket) {
+        if (packet is EntityPositionPacket) {
             lock.withLock {
                 for ((index, value) in positionPackets.withIndex()) {
-                    if (value is SpaceshipPositionPacket) {
+                    if (value is EntityPositionPacket) {
                         positionPackets[index] = value
                         return
                     }

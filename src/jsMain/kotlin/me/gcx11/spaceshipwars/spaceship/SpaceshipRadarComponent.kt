@@ -26,7 +26,7 @@ class SpaceshipRadarComponent(
         // skip other players
         if (clientComponent.clientId != serverConnection.id) return
 
-        for (entity in World.entities) {
+        for (entity in World.getAllEntites()) {
             val entityClientComponent = entity.getOptionalComponent<ClientComponent>() ?: continue
             val entityGeometricComponent = entity.getOptionalComponent<GeometricComponent>() ?: continue
 

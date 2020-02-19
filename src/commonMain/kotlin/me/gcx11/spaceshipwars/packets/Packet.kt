@@ -1,7 +1,6 @@
 package me.gcx11.spaceshipwars.packets
 
 import kotlinx.io.core.IoBuffer
-import kotlinx.io.core.buildPacket
 import kotlinx.io.core.readBytes
 
 sealed class Packet(val id: Byte)
@@ -9,11 +8,13 @@ data class NoopPacket(val clientId: Long): Packet(1)
 data class ClientJoinPacket(val clientId: Long): Packet(2)
 data class RespawnRequestPacket(val clientId: Long): Packet(3)
 data class SpaceshipSpawnPacket(val clientId: Long, val entityId: Long, val x: Float, val y: Float): Packet(4)
-data class SpaceshipPositionPacket(val positions: List<SpaceshipPosition>): Packet(5)
+data class EntityPositionPacket(val positions: List<EntityPosition>): Packet(5)
 data class MoveRequestPacket(val clientId: Long, val entityId: Long, val speed: Float, val direction: Float): Packet(6)
 data class EntityRemovePacket(val entityId: Long): Packet(7)
+data class FirePacket(val clientId: Long, val entityId: Long): Packet(8)
+data class BulletSpawnPacket(val entityId: Long, val x: Float, val y: Float): Packet(9)
 
-data class SpaceshipPosition(val entityId: Long, val x: Float, val y: Float, val direction: Float)
+data class EntityPosition(val entityId: Long, val x: Float, val y: Float, val direction: Float)
 
 private val pool = IoBuffer.Pool
 
@@ -42,7 +43,7 @@ fun serialize(packet: Packet): ByteArray {
             writeFloat(packet.y)
         }
 
-        is SpaceshipPositionPacket -> withBuffer {
+        is EntityPositionPacket -> withBuffer {
             writeByte(packet.id)
             writeInt(packet.positions.size)
             for (position in packet.positions) {
@@ -64,6 +65,19 @@ fun serialize(packet: Packet): ByteArray {
         is EntityRemovePacket -> withBuffer {
             writeByte(packet.id)
             writeLong(packet.entityId)
+        }
+
+        is FirePacket -> withBuffer {
+            writeByte(packet.id)
+            writeLong(packet.clientId)
+            writeLong(packet.entityId)
+        }
+
+        is BulletSpawnPacket -> withBuffer {
+            writeByte(packet.id)
+            writeLong(packet.entityId)
+            writeFloat(packet.x)
+            writeFloat(packet.y)
         }
     }
 }
@@ -97,10 +111,10 @@ fun deserialize(byteArray: ByteArray): Packet? {
             5.toByte() -> {
                 val size = readInt()
                 val positions = (0 until size).map {
-                    SpaceshipPosition(readLong(), readFloat(), readFloat(), readFloat())
+                    EntityPosition(readLong(), readFloat(), readFloat(), readFloat())
                 }
 
-                SpaceshipPositionPacket(positions)
+                EntityPositionPacket(positions)
             }
 
             6.toByte() -> {
@@ -109,6 +123,14 @@ fun deserialize(byteArray: ByteArray): Packet? {
 
             7.toByte() -> {
                 EntityRemovePacket(readLong())
+            }
+
+            8.toByte() -> {
+                FirePacket(readLong(), readLong())
+            }
+
+            9.toByte() -> {
+                BulletSpawnPacket(readLong(), readFloat(), readFloat())
             }
 
             else -> null

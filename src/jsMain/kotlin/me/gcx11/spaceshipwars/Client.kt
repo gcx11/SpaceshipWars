@@ -11,6 +11,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.awaitAnimationFrame
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.gcx11.spaceshipwars.bullet.BulletFactory
 import me.gcx11.spaceshipwars.components.ClientComponent
 import me.gcx11.spaceshipwars.components.GeometricComponent
 import me.gcx11.spaceshipwars.components.RenderableComponent
@@ -19,14 +20,13 @@ import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ServerConnection
 import me.gcx11.spaceshipwars.packets.*
-import me.gcx11.spaceshipwars.spaceship.ShapeRenderableComponent
+import me.gcx11.spaceshipwars.components.ShapeRenderableComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
 import me.gcx11.spaceshipwars.spaceship.SpaceshipRadarComponent
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 import kotlin.browser.document
 import kotlin.browser.window
-import kotlin.math.PI
 import kotlin.math.atan2
 
 val serverConnection = ServerConnection()
@@ -40,6 +40,10 @@ fun main() {
 
     window.onkeypress = { event ->
         globalEventQueue.push(KeyPressEvent(event.key))
+    }
+
+    window.onmousedown = { event ->
+        globalEventQueue.push(MouseDownEvent())
     }
 
     window.onmousemove = { event ->
@@ -83,13 +87,13 @@ fun draw(context: CanvasRenderingContext2D) {
     context.fillStyle = "white"
     context.fillText("Client id: ${serverConnection.id}", 100.0, 100.0)
 
-    val player = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
+    val player = World.getAllEntites().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
     val geometricComponent = player?.getOptionalComponent<GeometricComponent>()
     if (geometricComponent != null) {
         Camera.centerAt(geometricComponent.x, geometricComponent.y)
     }
 
-    for (entity in World.entities) {
+    for (entity in World.getAllEntites()) {
         val renderableComponents = entity.getAllComponents<RenderableComponent>()
         renderableComponents.forEach {
             if (it is ShapeRenderableComponent) {
@@ -112,6 +116,8 @@ fun launchGameloop(context: CanvasRenderingContext2D) {
             window.awaitAnimationFrame()
             //globalEventQueue.push(GameTickEvent())
             val events = globalEventQueue.freeze()
+            World.deleteOldEntities()
+            World.addNewEntities()
 
             processEvent(GameTickEvent())
             for (event in events) {
@@ -132,6 +138,7 @@ fun processEvent(event: Event) {
         is PacketEvent -> packetEventHandler(event)
         is KeyPressEvent -> keyPressEventHandler(event)
         is GameTickEvent -> gameTickEventHandler(event)
+        is MouseDownEvent -> mouseDownEventHandler(event)
     }
 }
 
@@ -179,17 +186,21 @@ fun registerEventHandlers() {
         val packet = event.packet
         if (packet is SpaceshipSpawnPacket) {
             val spaceship = SpaceshipFactory.create(packet.entityId, packet.x, packet.y, packet.clientId)
-            World.entities.add(spaceship)
+            World.addLater(spaceship)
         }
     }
 
     packetEventHandler += { event ->
         val packet = event.packet
-        if (packet is SpaceshipPositionPacket) {
+        if (packet is EntityPositionPacket) {
             for (position in packet.positions) {
-                val entity = World.entities.find { it.externalId == position.entityId }
-                val geometricComponent = entity?.getOptionalComponent<me.gcx11.spaceshipwars.spaceship.GeometricComponent>()
-                if (geometricComponent != null) {
+                val entity = World.getAllEntites().find { it.externalId == position.entityId }
+                val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
+                if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent) {
+                    geometricComponent.x = position.x
+                    geometricComponent.y = position.y
+                    geometricComponent.directionAngle = position.direction
+                } else if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.bullet.GeometricComponent) {
                     geometricComponent.x = position.x
                     geometricComponent.y = position.y
                     geometricComponent.directionAngle = position.direction
@@ -201,18 +212,36 @@ fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is EntityRemovePacket) {
-            World.entities.removeAll { it.externalId == packet.entityId }
+            val entitiesToRemove = World.getAllEntites().filter { it.externalId == packet.entityId }
+            entitiesToRemove.forEach { World.deleteLater(it) }
+        }
+    }
+
+    packetEventHandler += { event ->
+        val packet = event.packet
+        if (packet is BulletSpawnPacket) {
+            // TODO handle direction
+            val bullet = BulletFactory.createBullet(packet.entityId, packet.x, packet.y, 0f)
+            World.addLater(bullet)
         }
     }
 
     gameTickEventHandler += { event ->
-        val spaceShip = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
+        val spaceShip = World.getAllEntites().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
 
         if (spaceShip != null) {
             val direction = atan2(Camera.height / 2f - MousePosition.y, MousePosition.x - Camera.width / 2f)
             serverConnection.sendPacket(MoveRequestPacket(
                 serverConnection.id, spaceShip.externalId, 0f, direction
             ))
+        }
+    }
+
+    mouseDownEventHandler += { event ->
+        val spaceShip = World.getAllEntites().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
+
+        if (spaceShip != null) {
+            serverConnection.sendPacket(FirePacket(serverConnection.id, spaceShip.externalId))
         }
     }
 }

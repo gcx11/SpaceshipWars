@@ -16,7 +16,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.html.*
-import me.gcx11.spaceshipwars.collections.retrieveAll
 import me.gcx11.spaceshipwars.components.BehaviourComponent
 import me.gcx11.spaceshipwars.components.ClientComponent
 import me.gcx11.spaceshipwars.components.GeometricComponent
@@ -26,6 +25,7 @@ import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ClientConnection
 import me.gcx11.spaceshipwars.packets.*
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
+import me.gcx11.spaceshipwars.spaceship.SpaceshipFireComponent
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.random.Random
 
@@ -100,6 +100,8 @@ fun launchGameloop() {
     GlobalScope.launch {
         while (true) {
             val events = globalEventQueue.freeze()
+            World.deleteOldEntities()
+            World.addNewEntities()
 
             for (event in events) {
                 processEvent(event)
@@ -108,20 +110,22 @@ fun launchGameloop() {
             // TODO better delta
             val delta = sleepTime / 1000f
 
-            val positions = mutableListOf<SpaceshipPosition>()
-            for (entity in World.entities) {
+            val positions = mutableListOf<EntityPosition>()
+            for (entity in World.getAllEntites()) {
                 entity.getAllComponents<BehaviourComponent>().forEach { it.update(delta) }
 
                 // TODO use MoveEvent
-                val geometricComponent = entity.getOptionalComponent<me.gcx11.spaceshipwars.spaceship.GeometricComponent>()
-                if (geometricComponent != null) {
-                    positions.add(SpaceshipPosition(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle))
+                val geometricComponent = entity.getOptionalComponent<GeometricComponent>()
+                if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent) {
+                    positions.add(EntityPosition(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle))
+                } else if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.bullet.GeometricComponent) {
+                    positions.add(EntityPosition(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle))
                 }
             }
 
             clients.forEach {
                 it.sendPacket(
-                    SpaceshipPositionPacket(positions)
+                    EntityPositionPacket(positions)
                 )
             }
 
@@ -144,7 +148,7 @@ fun registerEventHandlers() {
         val packet = event.packet
 
         if (packet is MoveRequestPacket) {
-            val entity = World.entities.find { it.externalId == packet.entityId }
+            val entity = World.getAllEntites().find { it.externalId == packet.entityId }
 
             val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
             if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent) {
@@ -158,7 +162,7 @@ fun registerEventHandlers() {
 
         if (packet is RespawnRequestPacket) {
             val client = clients.find { it.id == packet.clientId }!!
-            for (entity in World.entities) {
+            for (entity in World.getAllEntites()) {
                 val geometricComponent = entity.getOptionalComponent<GeometricComponent>() ?: continue
 
                 client.sendPacket(
@@ -169,7 +173,7 @@ fun registerEventHandlers() {
             val x = rnd.nextFloat() * 400.0f
             val y = rnd.nextFloat() * 400.0f
             val spaceship = SpaceshipFactory.create(x, y, packet.clientId)
-            World.entities.add(spaceship)
+            World.addLater(spaceship)
 
             clients.forEach {
                 it.sendPacket(
@@ -181,10 +185,26 @@ fun registerEventHandlers() {
         }
     }
 
+    packetEventHandler += { event ->
+        val packet = event.packet
+
+        if (packet is FirePacket) {
+            val entity = World.getAllEntites().find { it.externalId == packet.entityId }
+
+            val spaceshipFireComponent = entity?.getOptionalComponent<SpaceshipFireComponent>()
+            if (spaceshipFireComponent != null) {
+                // TODO limit fire rate
+                spaceshipFireComponent.wantsFire = true
+            }
+        }
+    }
+
     clientDisconnectEventHandler += { event ->
-        val clientEntities = World.entities.retrieveAll {
+        val clientEntities = World.getAllEntites().filter {
             it.getOptionalComponent<ClientComponent>()?.clientId == event.clientId
         }
+
+        clientEntities.forEach { World.deleteLater(it) }
 
         clients.forEach { client ->
             clientEntities.forEach { entity ->
