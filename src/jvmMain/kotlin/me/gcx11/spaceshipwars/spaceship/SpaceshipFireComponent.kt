@@ -8,14 +8,22 @@ import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.packets.BulletSpawnPacket
 import me.gcx11.spaceshipwars.bullet.GeometricComponent
 
-class SpaceshipFireComponent(override val parent: Entity) : BehaviourComponent {
-    var wantsFire = true
+class SpaceshipFireComponent(
+    override val parent: Entity,
+    private val fireDelay: Float = 0.5f
+) : BehaviourComponent {
+    private var wantsFire = true
+    private var fireTimer = 0f
 
     override fun update(delta: Float) {
-        if (wantsFire) {
+        if (fireTimer > 0f) fireTimer -= delta
+
+        if (wantsFire && fireTimer <= 0f) {
+            wantsFire = false
+            fireTimer = fireDelay
+
             val bullet = BulletFactory.createBullet(parent)
             World.addLater(bullet)
-            wantsFire = false
 
             // TODO use events
             val geometricComponent = bullet.getRequiredComponent<GeometricComponent>()
@@ -23,5 +31,9 @@ class SpaceshipFireComponent(override val parent: Entity) : BehaviourComponent {
                 it.sendPacket(BulletSpawnPacket(bullet.externalId, geometricComponent.x, geometricComponent.y))
             }
         }
+    }
+
+    fun requestFire() {
+        wantsFire = true
     }
 }

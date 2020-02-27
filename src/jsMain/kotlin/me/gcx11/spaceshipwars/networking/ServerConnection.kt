@@ -1,12 +1,13 @@
 package me.gcx11.spaceshipwars.networking
 
+import me.gcx11.spaceshipwars.UUID
 import me.gcx11.spaceshipwars.packets.MoveRequestPacket
 import me.gcx11.spaceshipwars.packets.NoopPacket
 import me.gcx11.spaceshipwars.packets.Packet
 
 class ServerConnection {
     private val packetBuffer = mutableListOf<Packet>()
-    var id: Long = 0L
+    var id: UUID = UUID.new() // TODO zero UUID?
 
     fun sendPacket(packet: Packet) {
         if (packet is MoveRequestPacket) {

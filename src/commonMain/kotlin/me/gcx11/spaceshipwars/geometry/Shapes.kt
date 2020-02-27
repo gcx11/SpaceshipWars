@@ -203,6 +203,23 @@ fun Point.isPointInsideTriangle(triangle: Triangle): Boolean {
 }
 
 fun Line.isCrossing(line: Line): Boolean {
-    // TODO
-    return false
+    val x1 = this.first.x
+    val y1 = this.first.y
+    val x2 = this.second.x
+    val y2 = this.second.y
+    val x3 = line.first.x
+    val y3 = line.first.y
+    val x4 = line.second.x
+    val y4 = line.second.y
+
+    val d = (x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4)
+    if (d == 0f) return false
+
+    val t = (x1 - x3)*(y3 - y4) - (y1 - y3)*(x3 - x4) / d
+    if (t !in 0.0..1.0) return false
+
+    val u = (x1 - x2)*(y1 - y3) - (y1 - y2)*(x1 - x3) / d
+    if (u !in 0.0..1.0) return false
+
+    return true
 }

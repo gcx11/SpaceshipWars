@@ -1,6 +1,7 @@
 package me.gcx11.spaceshipwars.networking
 
 import kotlinx.atomicfu.locks.withLock
+import me.gcx11.spaceshipwars.UUID
 import me.gcx11.spaceshipwars.packets.NoopPacket
 import me.gcx11.spaceshipwars.packets.Packet
 import me.gcx11.spaceshipwars.packets.EntityPositionPacket
@@ -9,18 +10,13 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 
 class ClientConnection(
-    var id: Long
+    var id: UUID
 ) {
     private val packetBuffer = ConcurrentLinkedDeque<Packet>()
     private val positionPackets = mutableListOf<Packet>()
     private val lock = ReentrantLock()
 
-    companion object {
-        @JvmStatic
-        private val counter = AtomicLong(1L)
-    }
-
-    constructor(): this(counter.getAndIncrement())
+    constructor(): this(UUID.new())
 
     fun sendPacket(packet: Packet) {
         if (packet is EntityPositionPacket) {

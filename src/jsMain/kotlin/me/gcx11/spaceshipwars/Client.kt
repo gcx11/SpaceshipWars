@@ -42,7 +42,7 @@ fun main() {
         globalEventQueue.push(KeyPressEvent(event.key))
     }
 
-    window.onmousedown = { event ->
+    window.onmousedown = { _ ->
         globalEventQueue.push(MouseDownEvent())
     }
 
@@ -167,7 +167,7 @@ fun launchNetworking() {
                     send(Frame.Binary(true, serialize(packet)))
                 }
             } catch (ex: Exception) {
-                println("Error: ${ex.message}")
+                Logger.client.error { "Error: ${ex.message}" }
             }
         }
     }
@@ -226,7 +226,7 @@ fun registerEventHandlers() {
         }
     }
 
-    gameTickEventHandler += { event ->
+    gameTickEventHandler += { _ ->
         val spaceShip = World.getAllEntites().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
 
         if (spaceShip != null) {
@@ -237,7 +237,7 @@ fun registerEventHandlers() {
         }
     }
 
-    mouseDownEventHandler += { event ->
+    mouseDownEventHandler += { _ ->
         val spaceShip = World.getAllEntites().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
 
         if (spaceShip != null) {

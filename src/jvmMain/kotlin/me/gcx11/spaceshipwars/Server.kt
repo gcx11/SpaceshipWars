@@ -166,7 +166,8 @@ fun registerEventHandlers() {
                 val geometricComponent = entity.getOptionalComponent<GeometricComponent>() ?: continue
 
                 client.sendPacket(
-                    SpaceshipSpawnPacket(0, entity.externalId, geometricComponent.x, geometricComponent.y)
+                    // TODO zero uuid?
+                    SpaceshipSpawnPacket(UUID.new(), entity.externalId, geometricComponent.x, geometricComponent.y)
                 )
             }
 
@@ -178,7 +179,8 @@ fun registerEventHandlers() {
             clients.forEach {
                 it.sendPacket(
                     SpaceshipSpawnPacket(
-                        if (it.id == packet.clientId) packet.clientId else 0, spaceship.externalId, x, y
+                        // TODO zero uuid?
+                        if (it.id == packet.clientId) packet.clientId else UUID.new(), spaceship.externalId, x, y
                     )
                 )
             }
@@ -192,10 +194,7 @@ fun registerEventHandlers() {
             val entity = World.getAllEntites().find { it.externalId == packet.entityId }
 
             val spaceshipFireComponent = entity?.getOptionalComponent<SpaceshipFireComponent>()
-            if (spaceshipFireComponent != null) {
-                // TODO limit fire rate
-                spaceshipFireComponent.wantsFire = true
-            }
+            spaceshipFireComponent?.requestFire()
         }
     }
 
@@ -214,10 +213,10 @@ fun registerEventHandlers() {
     }
 
     clientConnectEventHandler += { event ->
-        println("Client ${event.clientId} connected!")
+        Logger.server.info { "Client ${event.clientId} connected!" }
     }
 
     clientDisconnectEventHandler += { event ->
-        println("Client ${event.clientId} disconnected!")
+        Logger.server.info { "Client ${event.clientId} disconnected!" }
     }
 }
