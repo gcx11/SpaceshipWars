@@ -1,7 +1,7 @@
 package me.gcx11.spaceshipwars.models
 
 import me.gcx11.spaceshipwars.collections.SwapQueue
-import me.gcx11.spaceshipwars.events.Event
+import me.gcx11.spaceshipwars.events.*
 
 val globalEventQueue = SwapQueue<Event>()
 
@@ -23,13 +23,19 @@ object World {
     }
 
     fun addNewEntities() {
-        // TODO event
+        entitiesToAdd.forEach {
+            spawnEntityEventHandler(SpawnEntityEvent(it))
+        }
+
         entities.addAll(entitiesToAdd)
         entitiesToAdd.clear()
     }
 
     fun deleteOldEntities() {
-        // TODO event
+        entitiesToDelete.forEach {
+            removeEntityEventHandler(RemoveEntityEvent(it))
+        }
+
         entities.removeAll(entitiesToDelete)
         entitiesToDelete.clear()
     }

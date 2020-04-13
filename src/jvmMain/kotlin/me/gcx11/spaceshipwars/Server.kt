@@ -204,12 +204,6 @@ fun registerEventHandlers() {
         }
 
         clientEntities.forEach { World.deleteLater(it) }
-
-        clients.forEach { client ->
-            clientEntities.forEach { entity ->
-                client.sendPacket(EntityRemovePacket(entity.externalId))
-            }
-        }
     }
 
     clientConnectEventHandler += { event ->
@@ -218,5 +212,22 @@ fun registerEventHandlers() {
 
     clientDisconnectEventHandler += { event ->
         Logger.server.info { "Client ${event.clientId} disconnected!" }
+    }
+
+    spawnEntityEventHandler += { event ->
+        /*
+        clients.forEach {
+            val entity = event.entity
+
+
+        }*/
+
+        // TODO
+    }
+
+    removeEntityEventHandler += { event ->
+        clients.forEach { client ->
+            client.sendPacket(EntityRemovePacket(event.entity.externalId))
+        }
     }
 }

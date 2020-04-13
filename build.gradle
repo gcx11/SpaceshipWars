@@ -84,6 +84,14 @@ kotlin {
                 implementation kotlin('test-js')
             }
         }
+
+        all {
+            languageSettings {
+                useExperimentalAnnotation('kotlin.RequiresOptIn')
+                useExperimentalAnnotation('kotlin.ExperimentalUnsignedTypes')
+                useExperimentalAnnotation('io.ktor.util.KtorExperimentalAPI')
+            }
+        }
     }
 }
 

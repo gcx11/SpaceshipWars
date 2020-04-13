@@ -11,18 +11,15 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.awaitAnimationFrame
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.gcx11.spaceshipwars.background.BackgroundFactory
 import me.gcx11.spaceshipwars.bullet.BulletFactory
-import me.gcx11.spaceshipwars.components.ClientComponent
-import me.gcx11.spaceshipwars.components.GeometricComponent
-import me.gcx11.spaceshipwars.components.RenderableComponent
+import me.gcx11.spaceshipwars.components.*
 import me.gcx11.spaceshipwars.events.*
 import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ServerConnection
 import me.gcx11.spaceshipwars.packets.*
-import me.gcx11.spaceshipwars.components.ShapeRenderableComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
-import me.gcx11.spaceshipwars.spaceship.SpaceshipRadarComponent
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 import kotlin.browser.document
@@ -83,9 +80,9 @@ fun clearCanvas(context: CanvasRenderingContext2D) {
 }
 
 fun draw(context: CanvasRenderingContext2D) {
-    context.font = "30px Arial"
+    context.font = "12px Arial"
     context.fillStyle = "white"
-    context.fillText("Client id: ${serverConnection.id}", 100.0, 100.0)
+    context.fillText("Client id: ${serverConnection.id}", 0.0, 20.0)
 
     val player = World.getAllEntites().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
     val geometricComponent = player?.getOptionalComponent<GeometricComponent>()
@@ -96,9 +93,7 @@ fun draw(context: CanvasRenderingContext2D) {
     for (entity in World.getAllEntites()) {
         val renderableComponents = entity.getAllComponents<RenderableComponent>()
         renderableComponents.forEach {
-            if (it is ShapeRenderableComponent) {
-                it.context = context
-            } else if (it is SpaceshipRadarComponent) {
+            if (it is CanvasContextRenderableComponent) {
                 it.context = context
             }
 
@@ -109,6 +104,7 @@ fun draw(context: CanvasRenderingContext2D) {
 
 fun launchGameloop(context: CanvasRenderingContext2D) {
     Camera.setDimensions(context.canvas.width.toFloat(), context.canvas.height.toFloat())
+    World.addLater(BackgroundFactory.create())
     registerEventHandlers()
 
     GlobalScope.launch {
@@ -142,7 +138,7 @@ fun processEvent(event: Event) {
     }
 }
 
-@UseExperimental(KtorExperimentalAPI::class)
+@OptIn(KtorExperimentalAPI::class)
 fun launchNetworking() {
     GlobalScope.launch {
         val client = HttpClient(Js) {

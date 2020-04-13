@@ -6,9 +6,10 @@ import org.w3c.dom.CanvasRenderingContext2D
 
 open class ShapeRenderableComponent(
     override val parent: Entity,
-    val fillStyle: FillStyle,
-    var context: CanvasRenderingContext2D? = null
-): RenderableComponent {
+    val fillStyle: FillStyle
+): CanvasContextRenderableComponent {
+    override var context: CanvasRenderingContext2D? = null
+
     override fun draw() {
         val ctx = context ?: return
         val geometricComponent = parent.getOptionalComponent<GeometricComponent>() ?: return

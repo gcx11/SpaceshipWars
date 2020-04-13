@@ -1,6 +1,7 @@
 package me.gcx11.spaceshipwars.spaceship
 
 import me.gcx11.spaceshipwars.Camera
+import me.gcx11.spaceshipwars.components.CanvasContextRenderableComponent
 import me.gcx11.spaceshipwars.components.ClientComponent
 import me.gcx11.spaceshipwars.components.GeometricComponent
 import me.gcx11.spaceshipwars.components.RenderableComponent
@@ -12,12 +13,13 @@ import kotlin.math.*
 
 class SpaceshipRadarComponent(
     override val parent: Entity,
-    var context: CanvasRenderingContext2D? = null,
     val arrowCenterDistance: Float = 35f,
     val arrowSizeDistance: Float = 30f,
     val arrowSidesAngle: Float = PI.toFloat() / 10f,
     val minDistance: Float = 400f
-): RenderableComponent {
+): CanvasContextRenderableComponent {
+    override var context: CanvasRenderingContext2D? = null
+
     override fun draw() {
         val ctx = context ?: return
         val clientComponent = parent.getOptionalComponent<ClientComponent>() ?: return

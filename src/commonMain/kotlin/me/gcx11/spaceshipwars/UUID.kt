@@ -2,7 +2,7 @@ package me.gcx11.spaceshipwars
 
 import kotlin.random.Random
 
-@UseExperimental(ExperimentalUnsignedTypes::class)
+@OptIn(ExperimentalUnsignedTypes::class)
 class UUID private constructor(
     private val high: Long,
     private val low: Long

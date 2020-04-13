@@ -6,7 +6,6 @@ import me.gcx11.spaceshipwars.packets.NoopPacket
 import me.gcx11.spaceshipwars.packets.Packet
 import me.gcx11.spaceshipwars.packets.EntityPositionPacket
 import java.util.concurrent.ConcurrentLinkedDeque
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 
 class ClientConnection(

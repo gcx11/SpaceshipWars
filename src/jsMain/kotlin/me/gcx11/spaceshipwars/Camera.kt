@@ -1,8 +1,10 @@
 package me.gcx11.spaceshipwars
 
 object Camera {
-    private var x = 0f
-    private var y = 0f
+    var x = 0f
+        private set
+    var y = 0f
+        private set
 
     var width = 0f
         private set
