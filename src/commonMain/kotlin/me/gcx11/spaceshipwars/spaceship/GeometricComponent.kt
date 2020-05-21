@@ -42,4 +42,11 @@ class GeometricComponent(
     val rightPart get() = Triangle(nose, rightWing, center)
 
     override val shape get() = ComposedFromTwo(leftPart, rightPart)
+
+    override fun toString(): String {
+        return buildString {
+            append(leftPart)
+            append(rightPart)
+        }
+    }
 }

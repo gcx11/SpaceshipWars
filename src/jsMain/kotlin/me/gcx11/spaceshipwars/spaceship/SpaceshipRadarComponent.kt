@@ -4,7 +4,6 @@ import me.gcx11.spaceshipwars.Camera
 import me.gcx11.spaceshipwars.components.CanvasContextRenderableComponent
 import me.gcx11.spaceshipwars.components.ClientComponent
 import me.gcx11.spaceshipwars.components.GeometricComponent
-import me.gcx11.spaceshipwars.components.RenderableComponent
 import me.gcx11.spaceshipwars.models.Entity
 import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.serverConnection
@@ -28,7 +27,7 @@ class SpaceshipRadarComponent(
         // skip other players
         if (clientComponent.clientId != serverConnection.id) return
 
-        for (entity in World.getAllEntites()) {
+        for (entity in World.getAllEntities()) {
             val entityClientComponent = entity.getOptionalComponent<ClientComponent>() ?: continue
             val entityGeometricComponent = entity.getOptionalComponent<GeometricComponent>() ?: continue
 

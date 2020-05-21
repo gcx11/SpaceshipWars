@@ -83,21 +83,23 @@ fun draw(context: CanvasRenderingContext2D) {
     context.font = "12px Arial"
     context.fillStyle = "white"
     context.fillText("Client id: ${serverConnection.id}", 0.0, 20.0)
+    context.fillText("${serverConnection.clientState}", 0.0, 40.0)
 
-    val player = World.getAllEntites().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
-    val geometricComponent = player?.getOptionalComponent<GeometricComponent>()
-    if (geometricComponent != null) {
-        Camera.centerAt(geometricComponent.x, geometricComponent.y)
-    }
+    if (serverConnection.clientState == ClientState.PLAYING) {
+        val player = World.getAllEntities().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
+        val geometricComponent = player?.getOptionalComponent<GeometricComponent>()
+        if (geometricComponent != null) {
+            Camera.centerAt(geometricComponent.x, geometricComponent.y)
+        }
 
-    for (entity in World.getAllEntites()) {
-        val renderableComponents = entity.getAllComponents<RenderableComponent>()
-        renderableComponents.forEach {
-            if (it is CanvasContextRenderableComponent) {
-                it.context = context
+        for (entity in World.getAllEntities()) {
+            entity.getAllComponents<RenderableComponent>().forEach {
+                if (it is CanvasContextRenderableComponent) {
+                    it.context = context
+                }
+
+                it.draw()
             }
-
-            it.draw()
         }
     }
 }
@@ -174,15 +176,20 @@ fun registerEventHandlers() {
         val packet = event.packet
         if (packet is ClientJoinPacket) {
             serverConnection.id = packet.clientId
-            serverConnection.sendPacket(RespawnRequestPacket(packet.clientId))
+            serverConnection.clientState = ClientState.CONNECTED
         }
     }
 
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is SpaceshipSpawnPacket) {
+            println(packet)
             val spaceship = SpaceshipFactory.create(packet.entityId, packet.x, packet.y, packet.clientId)
             World.addLater(spaceship)
+
+            if (packet.clientId == serverConnection.id) {
+                serverConnection.clientState = ClientState.PLAYING
+            }
         }
     }
 
@@ -190,7 +197,7 @@ fun registerEventHandlers() {
         val packet = event.packet
         if (packet is EntityPositionPacket) {
             for (position in packet.positions) {
-                val entity = World.getAllEntites().find { it.externalId == position.entityId }
+                val entity = World.getAllEntities().find { it.externalId == position.entityId }
                 val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
                 if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent) {
                     geometricComponent.x = position.x
@@ -208,7 +215,7 @@ fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is EntityRemovePacket) {
-            val entitiesToRemove = World.getAllEntites().filter { it.externalId == packet.entityId }
+            val entitiesToRemove = World.getAllEntities().filter { it.externalId == packet.entityId }
             entitiesToRemove.forEach { World.deleteLater(it) }
         }
     }
@@ -223,7 +230,7 @@ fun registerEventHandlers() {
     }
 
     gameTickEventHandler += { _ ->
-        val spaceShip = World.getAllEntites().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
+        val spaceShip = World.getAllEntities().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
 
         if (spaceShip != null) {
             val direction = atan2(Camera.height / 2f - MousePosition.y, MousePosition.x - Camera.width / 2f)
@@ -234,10 +241,20 @@ fun registerEventHandlers() {
     }
 
     mouseDownEventHandler += { _ ->
-        val spaceShip = World.getAllEntites().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
+        when (serverConnection.clientState) {
+            ClientState.CONNECTED -> {
+                // TODO input name + play button
+                println("Trigger respawn")
+                serverConnection.sendPacket(RespawnRequestPacket(serverConnection.id))
+            }
 
-        if (spaceShip != null) {
-            serverConnection.sendPacket(FirePacket(serverConnection.id, spaceShip.externalId))
+            ClientState.PLAYING -> {
+                val spaceShip = World.getAllEntities().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
+
+                if (spaceShip != null) {
+                    serverConnection.sendPacket(FirePacket(serverConnection.id, spaceShip.externalId))
+                }
+            }
         }
     }
 }

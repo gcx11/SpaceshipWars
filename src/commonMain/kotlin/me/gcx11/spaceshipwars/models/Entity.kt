@@ -7,6 +7,8 @@ class Entity(
     var externalId: Long = 0,
     val components: MutableList<Component> = mutableListOf()
 ) {
+    var tag = ""
+
     companion object {
         private var currentId = 0L
     }
@@ -45,12 +47,6 @@ class Entity(
     }
 
     override fun toString(): String {
-        return buildString {
-            append("Entity $externalId with ")
-            components.forEach {
-                append("\n\t")
-                append(it.toString())
-            }
-        }
+        return "Entity $externalId, tag: $tag"
     }
 }

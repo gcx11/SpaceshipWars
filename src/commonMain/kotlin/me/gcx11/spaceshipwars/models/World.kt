@@ -1,6 +1,7 @@
 package me.gcx11.spaceshipwars.models
 
 import me.gcx11.spaceshipwars.collections.SwapQueue
+import me.gcx11.spaceshipwars.components.DisposableComponent
 import me.gcx11.spaceshipwars.events.*
 
 val globalEventQueue = SwapQueue<Event>()
@@ -10,7 +11,7 @@ object World {
     private val entitiesToAdd = mutableListOf<Entity>()
     private val entitiesToDelete = mutableListOf<Entity>()
 
-    fun getAllEntites(): List<Entity> {
+    fun getAllEntities(): List<Entity> {
         return entities
     }
 
@@ -32,6 +33,10 @@ object World {
     }
 
     fun deleteOldEntities() {
+        entitiesToDelete.flatMap {
+            it.getAllComponents<DisposableComponent>()
+        }.forEach { it.dispose() }
+
         entitiesToDelete.forEach {
             removeEntityEventHandler(RemoveEntityEvent(it))
         }

@@ -64,13 +64,19 @@ data class Line(
         return when (shape) {
             is Point -> shape.intersectsWith(this)
             is Line -> {
-                if (shape.intersectsWith(first) || first.intersectsWith(shape)) return true
-                else if (shape.intersectsWith(second) || second.intersectsWith(shape)) return true
+                if (shape.intersectsWith(first)) return true
+                else if (shape.intersectsWith(second)) return true
 
                 this.isCrossing(shape)
             }
             is Triangle -> {
-                shape.intersectsWith(first) || shape.intersectsWith(second)
+                val isTouchingEdges = shape.edges.any { edge ->
+                    edge.intersectsWith(this)
+                }
+
+                val isInside = shape.intersectsWith(first) || shape.intersectsWith(second)
+
+                isTouchingEdges || isInside
             }
             is ComposedFromTwo -> shape.intersectsWith(this)
             is Composed -> shape.intersectsWith(this)
@@ -102,12 +108,17 @@ data class Triangle(
             is Point -> shape.intersectsWith(this)
             is Line -> shape.intersectsWith(this)
             is Triangle -> {
-                shape.first.isPointInsideTriangle(this) ||
-                        shape.second.isPointInsideTriangle(this) ||
-                        shape.third.isPointInsideTriangle(this) ||
-                        first.isPointInsideTriangle(shape) ||
-                        second.isPointInsideTriangle(shape) ||
-                        first.isPointInsideTriangle(shape)
+                val isTouchingEdges = shape.edges.any { edge ->
+                    edges.any { it.intersectsWith(edge) }
+                }
+
+                val isInside = shape.vertices.any {
+                    it.isPointInsideTriangle(this)
+                } || vertices.any {
+                    it.isPointInsideTriangle(shape)
+                }
+
+                isTouchingEdges || isInside
             }
             is ComposedFromTwo -> shape.intersectsWith(this)
             is Composed -> shape.intersectsWith(this)
@@ -176,30 +187,19 @@ data class Composed(
     }
 }
 
-
 fun Point.isPointInsideTriangle(triangle: Triangle): Boolean {
-    // check edges first
-    if (triangle.firstLine.intersectsWith(this)) return true
-    else if (triangle.secondLine.intersectsWith(this)) return true
-    else if (triangle.thirdLine.intersectsWith(this)) return true
+    val a = triangle.first
+    val b = triangle.second
+    val c = triangle.third
 
-    val ab = triangle.second - triangle.first
-    val bc = triangle.third - triangle.second
-    val ca = triangle.first - triangle.third
+    val t = this.x - a.x
+    val u = this.y - a.y
 
-    val ap = this - triangle.first
-    val bp = this - triangle.second
-    val cp = this - triangle.third
+    val v = (b.x - a.x) * u - (b.y - a.y) * t > 0
 
-    if (ab.cross(ap) > epsilon && bc.cross(bp) > epsilon && ca.cross(cp) > epsilon) return true
-    if (ab.cross(ap) < -epsilon && bc.cross(bp) < -epsilon && ca.cross(cp) < -epsilon) return true
-    if ((-epsilon <= ab.cross(ap) || ab.cross(ap) <= epsilon) &&
-        (-epsilon <= bc.cross(bp) || bc.cross(bp) <= epsilon) &&
-        (-epsilon <= ca.cross(cp) || ca.cross(cp) <= epsilon)) {
-        return true
-    }
+    if ((c.x - a.x) * u - (c.y - a.y) * t > 0 == v) return false
 
-    return false
+    return (c.x - b.x) * (this.y - b.y) - (c.y - b.y) * (this.x - b.x) > 0 == v
 }
 
 fun Line.isCrossing(line: Line): Boolean {
@@ -212,13 +212,12 @@ fun Line.isCrossing(line: Line): Boolean {
     val x4 = line.second.x
     val y4 = line.second.y
 
-    val d = (x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4)
+    val d = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1)
     if (d == 0f) return false
 
-    val t = (x1 - x3)*(y3 - y4) - (y1 - y3)*(x3 - x4) / d
+    val t = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / d
     if (t !in 0.0..1.0) return false
-
-    val u = (x1 - x2)*(y1 - y3) - (y1 - y2)*(x1 - x3) / d
+    val u = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / d
     if (u !in 0.0..1.0) return false
 
     return true

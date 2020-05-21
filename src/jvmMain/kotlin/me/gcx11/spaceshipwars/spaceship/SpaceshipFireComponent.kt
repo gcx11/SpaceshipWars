@@ -24,12 +24,6 @@ class SpaceshipFireComponent(
 
             val bullet = BulletFactory.createBullet(parent)
             World.addLater(bullet)
-
-            // TODO use events
-            val geometricComponent = bullet.getRequiredComponent<GeometricComponent>()
-            clients.forEach {
-                it.sendPacket(BulletSpawnPacket(bullet.externalId, geometricComponent.x, geometricComponent.y))
-            }
         }
     }
 

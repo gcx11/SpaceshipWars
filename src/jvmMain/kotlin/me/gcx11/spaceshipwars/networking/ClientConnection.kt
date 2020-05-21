@@ -1,6 +1,7 @@
 package me.gcx11.spaceshipwars.networking
 
 import kotlinx.atomicfu.locks.withLock
+import me.gcx11.spaceshipwars.ClientState
 import me.gcx11.spaceshipwars.UUID
 import me.gcx11.spaceshipwars.packets.NoopPacket
 import me.gcx11.spaceshipwars.packets.Packet
@@ -14,6 +15,7 @@ class ClientConnection(
     private val packetBuffer = ConcurrentLinkedDeque<Packet>()
     private val positionPackets = mutableListOf<Packet>()
     private val lock = ReentrantLock()
+    var clientState = ClientState.CONNECTED
 
     constructor(): this(UUID.new())
 

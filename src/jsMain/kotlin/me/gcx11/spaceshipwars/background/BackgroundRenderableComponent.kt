@@ -66,13 +66,13 @@ class BackgroundRenderableComponent(
         val sectorX = x / 100
         val sectorY = y / 100
 
-        if (sin(2 * sectorX.toDouble()) > 0) return null
+        if (sin(5 * sectorX.toDouble()) > 0) return null
         if (cos((sectorX + sectorY).toDouble()) < 0) return null
 
         if ((2*sectorX + sectorY + 1) % 3 != 0) return null
 
         return StarData(
-            x.toDouble() + ((29 * sectorY) % 100).toDouble(),
+            x.toDouble() + ((sectorX * sectorY) % 100).toDouble(),
             y.toDouble() + ((31 * sectorX) % 100).toDouble(),
             ((sectorX + sectorY) % 2 + 1).toDouble()
         )

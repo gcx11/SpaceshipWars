@@ -1,5 +1,7 @@
 package me.gcx11.spaceshipwars.bullet
 
+import me.gcx11.spaceshipwars.components.DefaultCollidableComponent
+import me.gcx11.spaceshipwars.components.DefaultDamagingComponent
 import me.gcx11.spaceshipwars.models.Entity
 import kotlin.math.cos
 import kotlin.math.sin
@@ -23,8 +25,11 @@ object BulletFactory {
                     speed = shooterMove.speed + 2f
                 )
             )
+            addComponent(DefaultCollidableComponent(this))
+            addComponent(DefaultDamagingComponent(this, 1))
         }.apply {
             this.externalId = this.internalId
+            this.tag = "Bullet"
         }
     }
 }
