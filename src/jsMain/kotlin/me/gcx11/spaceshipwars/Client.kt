@@ -20,8 +20,7 @@ import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ServerConnection
 import me.gcx11.spaceshipwars.packets.*
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
-import org.w3c.dom.CanvasRenderingContext2D
-import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.*
 import kotlin.browser.document
 import kotlin.browser.window
 import kotlin.math.atan2
@@ -30,7 +29,8 @@ val serverConnection = ServerConnection()
 
 fun main() {
     window.onload = {
-        val context = createCanvas()
+        val context = setupCanvas()
+        setupUI()
         launchGameloop(context)
         launchNetworking()
     }
@@ -58,12 +58,13 @@ fun updateMousePosition(x: Float, y: Float) {
     MousePosition.y = y
 }
 
-fun createCanvas(): CanvasRenderingContext2D {
-    val canvas = document.createElement("canvas") as HTMLCanvasElement
+fun setupCanvas(): CanvasRenderingContext2D {
+    val canvas = document.getElementsByTagName("canvas")[0] as HTMLCanvasElement
     val context = canvas.getContext("2d") as CanvasRenderingContext2D
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-    document.body!!.appendChild(canvas)
+    val width = canvas.clientWidth
+    val height = canvas.clientHeight
+    canvas.width = width
+    canvas.height = height
 
     return context
 }
@@ -82,17 +83,18 @@ fun clearCanvas(context: CanvasRenderingContext2D) {
 fun draw(context: CanvasRenderingContext2D) {
     context.font = "12px Arial"
     context.fillStyle = "white"
+    context.textAlign = CanvasTextAlign.LEFT
     context.fillText("Client id: ${serverConnection.id}", 0.0, 20.0)
     context.fillText("${serverConnection.clientState}", 0.0, 40.0)
 
     if (serverConnection.clientState == ClientState.PLAYING) {
-        val player = World.getAllEntities().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
+        val player = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
         val geometricComponent = player?.getOptionalComponent<GeometricComponent>()
         if (geometricComponent != null) {
             Camera.centerAt(geometricComponent.x, geometricComponent.y)
         }
 
-        for (entity in World.getAllEntities()) {
+        for (entity in World.entities) {
             entity.getAllComponents<RenderableComponent>().forEach {
                 if (it is CanvasContextRenderableComponent) {
                     it.context = context
@@ -102,6 +104,44 @@ fun draw(context: CanvasRenderingContext2D) {
             }
         }
     }
+}
+
+fun setupUI() {
+    val nickNameInput = document.getElementById("nickname") as? HTMLInputElement?
+    nickNameInput?.apply {
+        onkeypress = {
+            it.keyCode != 13 // disable ENTER key
+        }
+    }
+
+    val joinGameInput = document.getElementById("join-game") as? HTMLButtonElement?
+    joinGameInput?.apply {
+        onclick = {
+            onGameJoin()
+        }
+    }
+}
+
+private fun onGameJoin() {
+    when (serverConnection.clientState) {
+        ClientState.CONNECTED -> {
+            val nickNameInput = document.getElementById("nickname") as? HTMLInputElement?
+            val nickName = nickNameInput?.value.orEmpty().takeIf { it.isNotBlank() } ?: "Unknown"
+            serverConnection.sendPacket(RespawnRequestPacket(serverConnection.id, nickName))
+
+            hideContainerUI()
+        }
+    }
+}
+
+private fun hideContainerUI() {
+    val form = document.getElementsByClassName("container")[0] as? HTMLFormElement?
+    form?.style?.display = "none"
+}
+
+private fun displayContainerUI() {
+    val form = document.getElementsByClassName("container")[0] as? HTMLFormElement?
+    form?.style?.display = "flex"
 }
 
 fun launchGameloop(context: CanvasRenderingContext2D) {
@@ -183,8 +223,7 @@ fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is SpaceshipSpawnPacket) {
-            println(packet)
-            val spaceship = SpaceshipFactory.create(packet.entityId, packet.x, packet.y, packet.clientId)
+            val spaceship = SpaceshipFactory.create(packet.entityId, packet.x, packet.y, packet.clientId, packet.nickName)
             World.addLater(spaceship)
 
             if (packet.clientId == serverConnection.id) {
@@ -197,7 +236,7 @@ fun registerEventHandlers() {
         val packet = event.packet
         if (packet is EntityPositionPacket) {
             for (position in packet.positions) {
-                val entity = World.getAllEntities().find { it.externalId == position.entityId }
+                val entity = World.entities.find { it.externalId == position.entityId }
                 val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
                 if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent) {
                     geometricComponent.x = position.x
@@ -215,8 +254,23 @@ fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is EntityRemovePacket) {
-            val entitiesToRemove = World.getAllEntities().filter { it.externalId == packet.entityId }
-            entitiesToRemove.forEach { World.deleteLater(it) }
+            val entityToRemove = World.entities.find { it.externalId == packet.entityId }
+
+            if (entityToRemove != null) {
+                val clientComponent = entityToRemove.getOptionalComponent<ClientComponent>()
+
+                if (clientComponent != null && clientComponent.clientId == serverConnection.id) {
+                    // client is now dead, delete everything
+                    World.entities.forEach { World.deleteLater(it) }
+
+                    serverConnection.clientState = ClientState.CONNECTED
+                    displayContainerUI()
+                } else {
+                    World.deleteLater(entityToRemove)
+                }
+            } else {
+                Logger.client.warn { "EntityRemovePacket - entity with id ${packet.entityId} not found!" }
+            }
         }
     }
 
@@ -230,7 +284,7 @@ fun registerEventHandlers() {
     }
 
     gameTickEventHandler += { _ ->
-        val spaceShip = World.getAllEntities().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
+        val spaceShip = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
 
         if (spaceShip != null) {
             val direction = atan2(Camera.height / 2f - MousePosition.y, MousePosition.x - Camera.width / 2f)
@@ -242,14 +296,8 @@ fun registerEventHandlers() {
 
     mouseDownEventHandler += { _ ->
         when (serverConnection.clientState) {
-            ClientState.CONNECTED -> {
-                // TODO input name + play button
-                println("Trigger respawn")
-                serverConnection.sendPacket(RespawnRequestPacket(serverConnection.id))
-            }
-
             ClientState.PLAYING -> {
-                val spaceShip = World.getAllEntities().find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
+                val spaceShip = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
 
                 if (spaceShip != null) {
                     serverConnection.sendPacket(FirePacket(serverConnection.id, spaceShip.externalId))

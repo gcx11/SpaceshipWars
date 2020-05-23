@@ -12,10 +12,10 @@ import kotlin.math.*
 
 class SpaceshipRadarComponent(
     override val parent: Entity,
-    val arrowCenterDistance: Float = 35f,
-    val arrowSizeDistance: Float = 30f,
-    val arrowSidesAngle: Float = PI.toFloat() / 10f,
-    val minDistance: Float = 400f
+    private val arrowCenterDistance: Float = 35f,
+    private val arrowSizeDistance: Float = 30f,
+    private val arrowSidesAngle: Float = PI.toFloat() / 10f,
+    private val minDistance: Float = 400f
 ): CanvasContextRenderableComponent {
     override var context: CanvasRenderingContext2D? = null
 
@@ -27,7 +27,7 @@ class SpaceshipRadarComponent(
         // skip other players
         if (clientComponent.clientId != serverConnection.id) return
 
-        for (entity in World.getAllEntities()) {
+        for (entity in World.entities) {
             val entityClientComponent = entity.getOptionalComponent<ClientComponent>() ?: continue
             val entityGeometricComponent = entity.getOptionalComponent<GeometricComponent>() ?: continue
 

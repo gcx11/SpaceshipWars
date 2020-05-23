@@ -7,14 +7,10 @@ import me.gcx11.spaceshipwars.components.DefaultDamagingComponent
 import me.gcx11.spaceshipwars.models.Entity
 
 actual object SpaceshipFactory {
-    fun create(x: Float, y: Float, clientId: UUID): Entity {
+    fun create(x: Float, y: Float, clientId: UUID, nickName: String): Entity {
         return Entity().apply {
-            addComponent(
-                ClientComponent(
-                    this,
-                    clientId
-                )
-            )
+            addComponent(ClientComponent(this, clientId))
+            addComponent(SpaceShipNickNameComponent(this, nickName))
             addComponent(GeometricComponent(this, x, y, 20f, 20f, 20f, 0f))
             addComponent(MoveComponent(this))
             addComponent(SpaceshipFireComponent(this))

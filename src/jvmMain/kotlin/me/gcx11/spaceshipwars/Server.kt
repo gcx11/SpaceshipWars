@@ -25,12 +25,16 @@ import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ClientConnection
 import me.gcx11.spaceshipwars.packets.*
+import me.gcx11.spaceshipwars.spaceship.SpaceShipNickNameComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFireComponent
+import sun.rmi.runtime.Log
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.random.Random
 
 val clients = CopyOnWriteArrayList<ClientConnection>()
+val playingClients get() = clients.asSequence().filter { it.clientState == ClientState.PLAYING }
+
 val rnd = Random.Default
 
 fun main() {
@@ -48,13 +52,55 @@ fun main() {
                         style {
                             unsafe {
                                 raw("""
-                                    html, body {
-                                        width: 100%;
-                                        height: 100%;
-                                        margin: 0px;
-                                        border: 0;
-                                        overflow: hidden; /*  Disable scrollbars */
-                                        display: block;  /* No floating content on sides */
+                                    body {
+                                        margin: 0;
+                                    }
+                                    
+                                    canvas {
+                                        display: block;  /* prevents scrollbar */
+                                        width: 100vw;
+                                        height: 100vh;
+                                    }
+                                    
+                                    .container {
+                                        position: absolute;
+                                        z-index: 1;
+                                        width: 100vw;
+                                        height: 100vh;
+                                        display: flex;
+                                        justify-content: center;
+                                        align-items: center;
+                                        top: 0px;
+                                        left: 0px;
+                                    }
+                                    
+                                    .container input, select, textarea, button {
+                                        font-family: sans-serif;
+                                        margin: .3em;
+                                        color: #00CED1;
+                                        background: transparent;
+                                    }
+                                    
+                                    .container button, .container input {
+                                        border: 1px solid #00CED1;
+                                        border-radius: 3px;
+                                        padding: .5em 1em;
+                                        font-weight: bold;
+                                    }
+                                    
+                                    .container button:hover {
+                                        cursor: pointer;
+                                        background: #00CED1;
+                                        color: #000;
+                                    }
+                                    
+                                    .container input::placeholder {
+                                        color: #254c4c;
+                                        font-weight: normal;
+                                    }
+                                    
+                                    .container input, .container button {
+                                        outline: none;
                                     }
                                 """.trimIndent())
                             }
@@ -62,6 +108,23 @@ fun main() {
                     }
                     body {
                         script(src = "/static/SpaceshipWars.js") {}
+                        canvas {
+
+                        }
+                        form(classes = "container") {
+                            input(InputType.text) {
+                                id = "nickname"
+                                autoFocus = true
+                                autoComplete = false
+                                spellCheck = false
+                                placeholder = "Nickname"
+                            }
+
+                            button(type = ButtonType.button) {
+                                id = "join-game"
+                                text("Play")
+                            }
+                        }
                     }
                 }
             }
@@ -112,7 +175,7 @@ fun launchGameloop() {
             val delta = sleepTime / 1000f
 
             val positions = mutableListOf<EntityPosition>()
-            for (entity in World.getAllEntities()) {
+            for (entity in World.entities) {
                 entity.getAllComponents<BehaviourComponent>().forEach { it.update(delta) }
 
                 // TODO use MoveEvent
@@ -124,7 +187,7 @@ fun launchGameloop() {
                 }
             }
 
-            val collidables = World.getAllEntities().mapNotNull { it.getOptionalComponent<CollidableComponent>() }
+            val collidables = World.entities.mapNotNull { it.getOptionalComponent<CollidableComponent>() }
                 .onEach { it.clearAllCollided() }
 
             val collisionEvents = mutableListOf<CollisionEvent>()
@@ -140,7 +203,7 @@ fun launchGameloop() {
             }
             collisionEvents.forEach { collisionEventHandler(it) }
 
-            clients.forEach {
+            playingClients.forEach {
                 it.sendPacket(
                     EntityPositionPacket(positions)
                 )
@@ -165,7 +228,7 @@ fun registerEventHandlers() {
         val packet = event.packet
 
         if (packet is MoveRequestPacket) {
-            val entity = World.getAllEntities().find { it.externalId == packet.entityId }
+            val entity = World.entities.find { it.externalId == packet.entityId }
 
             val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
             if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent) {
@@ -178,30 +241,7 @@ fun registerEventHandlers() {
         val packet = event.packet
 
         if (packet is RespawnRequestPacket) {
-            val client = clients.find { it.id == packet.clientId }!!
-            client.clientState = ClientState.PLAYING
-            for (entity in World.getAllEntities()) {
-                val geometricComponent = entity.getOptionalComponent<GeometricComponent>() ?: continue
-
-                client.sendPacket(
-                    // TODO zero uuid?
-                    SpaceshipSpawnPacket(UUID.new(), entity.externalId, geometricComponent.x, geometricComponent.y)
-                )
-            }
-
-            val x = rnd.nextFloat() * 400.0f
-            val y = rnd.nextFloat() * 400.0f
-            val spaceship = SpaceshipFactory.create(x, y, packet.clientId)
-            World.addLater(spaceship)
-
-            clients.filter { it.clientState == ClientState.PLAYING }.forEach {
-                it.sendPacket(
-                    SpaceshipSpawnPacket(
-                        // TODO zero uuid?
-                        if (it.id == packet.clientId) packet.clientId else UUID.new(), spaceship.externalId, x, y
-                    )
-                )
-            }
+            handleRespawnRequestPacket(packet)
         }
     }
 
@@ -209,7 +249,7 @@ fun registerEventHandlers() {
         val packet = event.packet
 
         if (packet is FirePacket) {
-            val entity = World.getAllEntities().find { it.externalId == packet.entityId }
+            val entity = World.entities.find { it.externalId == packet.entityId }
 
             val spaceshipFireComponent = entity?.getOptionalComponent<SpaceshipFireComponent>()
             spaceshipFireComponent?.requestFire()
@@ -220,12 +260,12 @@ fun registerEventHandlers() {
         val packet = event.packet
 
         if (packet is RespawnRequestPacket) {
-            println("RespawnRequestPacket $packet")
+            Logger.server.info { "RespawnRequestPacket $packet" }
         }
     }
 
     clientDisconnectEventHandler += { event ->
-        val clientEntities = World.getAllEntities().filter {
+        val clientEntities = World.entities.filter {
             it.getOptionalComponent<ClientComponent>()?.clientId == event.clientId
         }
 
@@ -246,15 +286,59 @@ fun registerEventHandlers() {
         val geometricComponent = entity.getOptionalComponent<me.gcx11.spaceshipwars.bullet.GeometricComponent>()
 
         if (geometricComponent != null) {
-            clients.forEach {
+            playingClients.forEach {
                 it.sendPacket(BulletSpawnPacket(entity.externalId, geometricComponent.x, geometricComponent.y))
             }
         }
     }
 
     removeEntityEventHandler += { event ->
-        clients.forEach { client ->
-            client.sendPacket(EntityRemovePacket(event.entity.externalId))
+        val entity = event.entity
+
+        playingClients.forEach { client ->
+            client.sendPacket(EntityRemovePacket(entity.externalId))
         }
+
+        val clientComponent = entity.getOptionalComponent<ClientComponent>()
+        if (clientComponent != null) {
+            val entityClient = clients.find { it.id == clientComponent.clientId }
+            if (entityClient != null) {
+                entityClient.clientState = ClientState.CONNECTED
+            }
+        }
+    }
+}
+
+private fun handleRespawnRequestPacket(packet: RespawnRequestPacket) {
+    Logger.server.info { "Player nickname: '${packet.nickName}'" }
+    val client = clients.find { it.id == packet.clientId }!!
+    if (client.clientState == ClientState.PLAYING) {
+        Logger.server.info { "Client ${packet.clientId} is already playing!" }
+        return
+    }
+
+    client.clientState = ClientState.PLAYING
+    for (entity in World.entities) {
+        val geometricComponent = entity.getOptionalComponent<GeometricComponent>() ?: continue
+        val nickNameComponent = entity.getOptionalComponent<SpaceShipNickNameComponent>() ?: continue
+
+        client.sendPacket(
+            // TODO zero uuid?
+            SpaceshipSpawnPacket(UUID.new(), entity.externalId, geometricComponent.x, geometricComponent.y, nickNameComponent.nickName)
+        )
+    }
+
+    val x = rnd.nextFloat() * 400.0f
+    val y = rnd.nextFloat() * 400.0f
+    val spaceship = SpaceshipFactory.create(x, y, packet.clientId, packet.nickName)
+    World.addLater(spaceship)
+
+    playingClients.forEach {
+        it.sendPacket(
+            SpaceshipSpawnPacket(
+                // TODO zero uuid?
+                if (it.id == packet.clientId) packet.clientId else UUID.new(), spaceship.externalId, x, y, packet.nickName
+            )
+        )
     }
 }

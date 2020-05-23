@@ -7,13 +7,11 @@ import me.gcx11.spaceshipwars.events.*
 val globalEventQueue = SwapQueue<Event>()
 
 object World {
-    private val entities = mutableListOf<Entity>()
+    private val entityCollection = mutableListOf<Entity>()
     private val entitiesToAdd = mutableListOf<Entity>()
     private val entitiesToDelete = mutableListOf<Entity>()
 
-    fun getAllEntities(): List<Entity> {
-        return entities
-    }
+    val entities: List<Entity> get() = entityCollection
 
     fun addLater(entity: Entity) {
         entitiesToAdd.add(entity)
@@ -28,7 +26,7 @@ object World {
             spawnEntityEventHandler(SpawnEntityEvent(it))
         }
 
-        entities.addAll(entitiesToAdd)
+        entityCollection.addAll(entitiesToAdd)
         entitiesToAdd.clear()
     }
 
@@ -41,7 +39,7 @@ object World {
             removeEntityEventHandler(RemoveEntityEvent(it))
         }
 
-        entities.removeAll(entitiesToDelete)
+        entityCollection.removeAll(entitiesToDelete)
         entitiesToDelete.clear()
     }
 }

@@ -1,14 +1,13 @@
 package me.gcx11.spaceshipwars.packets
 
-import kotlinx.io.core.IoBuffer
-import kotlinx.io.core.readBytes
+import kotlinx.io.core.*
 import me.gcx11.spaceshipwars.UUID
 
 sealed class Packet(val id: Byte)
 data class NoopPacket(val clientId: UUID): Packet(1)
 data class ClientJoinPacket(val clientId: UUID): Packet(2)
-data class RespawnRequestPacket(val clientId: UUID): Packet(3)
-data class SpaceshipSpawnPacket(val clientId: UUID, val entityId: Long, val x: Float, val y: Float): Packet(4)
+data class RespawnRequestPacket(val clientId: UUID, val nickName: String): Packet(3)
+data class SpaceshipSpawnPacket(val clientId: UUID, val entityId: Long, val x: Float, val y: Float, val nickName: String): Packet(4)
 data class EntityPositionPacket(val positions: List<EntityPosition>): Packet(5)
 data class MoveRequestPacket(val clientId: UUID, val entityId: Long, val speed: Float, val direction: Float): Packet(6)
 data class EntityRemovePacket(val entityId: Long): Packet(7)
@@ -34,6 +33,7 @@ fun serialize(packet: Packet): ByteArray {
         is RespawnRequestPacket -> withBuffer {
             writeByte(packet.id)
             writeUUID(packet.clientId)
+            writeText(packet.nickName)
         }
 
         is SpaceshipSpawnPacket -> withBuffer {
@@ -42,6 +42,7 @@ fun serialize(packet: Packet): ByteArray {
             writeLong(packet.entityId)
             writeFloat(packet.x)
             writeFloat(packet.y)
+            writeText(packet.nickName)
         }
 
         is EntityPositionPacket -> withBuffer {
@@ -102,11 +103,11 @@ fun deserialize(byteArray: ByteArray): Packet? {
             }
 
             3.toByte() -> {
-                RespawnRequestPacket(readUUID())
+                RespawnRequestPacket(readUUID(), readText())
             }
 
             4.toByte() -> {
-                SpaceshipSpawnPacket(readUUID(), readLong(), readFloat(), readFloat())
+                SpaceshipSpawnPacket(readUUID(), readLong(), readFloat(), readFloat(), readText())
             }
 
             5.toByte() -> {
@@ -157,4 +158,19 @@ private fun IoBuffer.writeUUID(uuid: UUID) {
 
 private fun IoBuffer.readUUID(): UUID {
     return UUID.from(readLong(), readLong())
+}
+
+private fun IoBuffer.writeText(text: String) {
+    val bytes = text.toByteArray()
+
+    this.writeInt(bytes.size)
+    this.writeFully(bytes, 0, bytes.size)
+}
+
+private fun IoBuffer.readText(): String {
+    val bytesSize = readInt()
+    val byteArray = ByteArray(bytesSize)
+    readFully(byteArray, 0, bytesSize)
+
+    return String(byteArray)
 }
