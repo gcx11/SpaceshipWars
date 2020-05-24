@@ -22,7 +22,7 @@ object BulletFactory {
             addComponent(
                 MoveComponent(
                     this,
-                    speed = shooterMove.speed + 2f
+                    speed = shooterMove.speed + 100f
                 )
             )
             addComponent(DefaultCollidableComponent(this))

@@ -14,8 +14,8 @@ abstract class DefaultMoveComponent(
 ) : MoveComponent {
     override fun update(delta: Float) {
         getRequiredSibling<GeometricComponent>().let {
-            it.x += speed * cos(direction())
-            it.y += speed * sin(direction())
+            it.x += speed * cos(direction()) * delta
+            it.y += speed * sin(direction()) * delta
 
             eventHandler(MoveEvent(parent))
         }

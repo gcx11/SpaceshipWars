@@ -10,6 +10,7 @@ class ServerConnection {
     private val packetBuffer = mutableListOf<Packet>()
     var id: UUID = UUID.new() // TODO zero UUID?
     var clientState = ClientState.CONNECTING
+    var ping: Long = 0
 
     fun sendPacket(packet: Packet) {
         if (packet is MoveRequestPacket) {

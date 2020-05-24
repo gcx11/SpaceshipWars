@@ -19,7 +19,9 @@ import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ServerConnection
 import me.gcx11.spaceshipwars.packets.*
+import me.gcx11.spaceshipwars.spaceship.MovePredictionComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
+import me.gcx11.spaceshipwars.time.getUnixTimeMillis
 import org.w3c.dom.*
 import kotlin.browser.document
 import kotlin.browser.window
@@ -86,6 +88,7 @@ fun draw(context: CanvasRenderingContext2D) {
     context.textAlign = CanvasTextAlign.LEFT
     context.fillText("Client id: ${serverConnection.id}", 0.0, 20.0)
     context.fillText("${serverConnection.clientState}", 0.0, 40.0)
+    context.fillText("Ping ${serverConnection.ping}ms", 0.0, 60.0)
 
     if (serverConnection.clientState == ClientState.PLAYING) {
         val player = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
@@ -144,14 +147,22 @@ private fun displayContainerUI() {
     form?.style?.display = "flex"
 }
 
+fun computeMouseDirection(): Float {
+    return atan2(Camera.height / 2f - MousePosition.y, MousePosition.x - Camera.width / 2f)
+}
+
 fun launchGameloop(context: CanvasRenderingContext2D) {
     Camera.setDimensions(context.canvas.width.toFloat(), context.canvas.height.toFloat())
     World.addLater(BackgroundFactory.create())
     registerEventHandlers()
 
+    var lastTime = getUnixTimeMillis()
+
     GlobalScope.launch {
         while (true) {
             window.awaitAnimationFrame()
+            val delta = (getUnixTimeMillis() - lastTime) / 1000.0f
+            lastTime = getUnixTimeMillis()
             //globalEventQueue.push(GameTickEvent())
             val events = globalEventQueue.freeze()
             World.deleteOldEntities()
@@ -163,6 +174,10 @@ fun launchGameloop(context: CanvasRenderingContext2D) {
             }
 
             globalEventQueue.unfreeze()
+
+            for (entity in World.entities) {
+                entity.getAllComponents<BehaviourComponent>().forEach { it.update(delta) }
+            }
 
             clearCanvas(context)
             draw(context)
@@ -190,13 +205,15 @@ fun launchNetworking() {
         client.ws(
             method = HttpMethod.Get,
             host = serverIp,
-            port = serverPort, path = "/ws"
+            port = serverPort,
+            path = "/ws"
         ) {
             try {
                 for (frame in incoming) {
                     when (frame) {
                         is Frame.Binary -> {
                             val incomingPacket = deserialize(frame.readBytes())!!
+                            serverConnection.ping = getUnixTimeMillis() - incomingPacket.timestamp
                             globalEventQueue.push(PacketEvent(incomingPacket))
                         }
                     }
@@ -238,10 +255,11 @@ fun registerEventHandlers() {
             for (position in packet.positions) {
                 val entity = World.entities.find { it.externalId == position.entityId }
                 val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
-                if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent) {
-                    geometricComponent.x = position.x
-                    geometricComponent.y = position.y
-                    geometricComponent.directionAngle = position.direction
+                val movePredictionComponent = entity?.getOptionalComponent<MovePredictionComponent>()
+                if (geometricComponent != null &&
+                    geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent &&
+                    movePredictionComponent != null) {
+                    movePredictionComponent.supplyServerData(position.x, position.y, position.direction)
                 } else if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.bullet.GeometricComponent) {
                     geometricComponent.x = position.x
                     geometricComponent.y = position.y
@@ -277,8 +295,7 @@ fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is BulletSpawnPacket) {
-            // TODO handle direction
-            val bullet = BulletFactory.createBullet(packet.entityId, packet.x, packet.y, 0f)
+            val bullet = BulletFactory.createBullet(packet.entityId, packet.x, packet.y, packet.direction)
             World.addLater(bullet)
         }
     }
@@ -287,9 +304,8 @@ fun registerEventHandlers() {
         val spaceShip = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
 
         if (spaceShip != null) {
-            val direction = atan2(Camera.height / 2f - MousePosition.y, MousePosition.x - Camera.width / 2f)
             serverConnection.sendPacket(MoveRequestPacket(
-                serverConnection.id, spaceShip.externalId, 0f, direction
+                serverConnection.id, spaceShip.externalId, 0f, computeMouseDirection()
             ))
         }
     }

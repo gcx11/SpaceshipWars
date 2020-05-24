@@ -8,7 +8,7 @@ import me.gcx11.spaceshipwars.models.World
 class MoveComponent(
     override val parent: Entity,
 
-    override var speed: Float = 5f
+    override var speed: Float = 100f
 ) : DefaultMoveComponent(parent, speed) {
     private var timer = 2f
 

@@ -1,5 +1,6 @@
 package me.gcx11.spaceshipwars
 
+import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.html.respondHtml
@@ -28,7 +29,7 @@ import me.gcx11.spaceshipwars.packets.*
 import me.gcx11.spaceshipwars.spaceship.SpaceShipNickNameComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFireComponent
-import sun.rmi.runtime.Log
+import me.gcx11.spaceshipwars.time.getUnixTimeMillis
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.random.Random
 
@@ -42,6 +43,10 @@ fun main() {
 
     embeddedServer(Netty, port = serverPort, host = serverIp) {
         install(WebSockets)
+
+        intercept(ApplicationCallPipeline.Features) {
+            delay(20)
+        }
 
         routing {
             get("/") {
@@ -143,6 +148,7 @@ fun main() {
                         }
                     }
 
+                    delay(20)
                     send(Frame.Binary(true, serialize(client.getNextPacket())))
                 }
 
@@ -161,8 +167,12 @@ fun main() {
 fun launchGameloop() {
     registerEventHandlers()
 
+    var lastTime = getUnixTimeMillis()
+
     GlobalScope.launch {
         while (true) {
+            val delta = (getUnixTimeMillis() - lastTime) / 1000.0f
+            lastTime = getUnixTimeMillis()
             val events = globalEventQueue.freeze()
             World.deleteOldEntities()
             World.addNewEntities()
@@ -170,9 +180,6 @@ fun launchGameloop() {
             for (event in events) {
                 processEvent(event)
             }
-
-            // TODO better delta
-            val delta = sleepTime / 1000f
 
             val positions = mutableListOf<EntityPosition>()
             for (entity in World.entities) {
@@ -187,7 +194,8 @@ fun launchGameloop() {
                 }
             }
 
-            val collidables = World.entities.mapNotNull { it.getOptionalComponent<CollidableComponent>() }
+            val collidables = World.entities
+                .mapNotNull { it.getOptionalComponent<CollidableComponent>() }
                 .onEach { it.clearAllCollided() }
 
             val collisionEvents = mutableListOf<CollisionEvent>()
@@ -287,7 +295,7 @@ fun registerEventHandlers() {
 
         if (geometricComponent != null) {
             playingClients.forEach {
-                it.sendPacket(BulletSpawnPacket(entity.externalId, geometricComponent.x, geometricComponent.y))
+                it.sendPacket(BulletSpawnPacket(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle))
             }
         }
     }

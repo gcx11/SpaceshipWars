@@ -7,7 +7,7 @@ import me.gcx11.spaceshipwars.models.Entity
 class MoveComponent(
     override val parent: Entity,
 
-    val defaultSpeed: Float = 2f
+    val defaultSpeed: Float = 100f
 ): DefaultMoveComponent(parent, defaultSpeed) {
     override fun direction(): Float {
         return getRequiredSibling<GeometricComponent>().directionAngle
