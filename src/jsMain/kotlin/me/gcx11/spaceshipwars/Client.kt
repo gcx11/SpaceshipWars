@@ -12,6 +12,7 @@ import kotlinx.coroutines.awaitAnimationFrame
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.gcx11.spaceshipwars.background.BackgroundFactory
+import me.gcx11.spaceshipwars.background.BackgroundRenderableComponent
 import me.gcx11.spaceshipwars.bullet.BulletFactory
 import me.gcx11.spaceshipwars.components.*
 import me.gcx11.spaceshipwars.events.*
@@ -249,6 +250,8 @@ fun registerEventHandlers() {
         if (packet is SpaceshipSpawnPacket) {
             val spaceship = SpaceshipFactory.create(packet.entityId, packet.x, packet.y, packet.clientId, packet.nickName)
             World.addLater(spaceship)
+            // show stars
+            World.addLater(BackgroundFactory.create())
 
             if (packet.clientId == serverConnection.id) {
                 serverConnection.clientState = ClientState.PLAYING
