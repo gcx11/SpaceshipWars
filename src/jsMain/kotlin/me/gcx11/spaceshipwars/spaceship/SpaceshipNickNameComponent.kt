@@ -10,7 +10,7 @@ import org.w3c.dom.CanvasTextAlign
 
 class SpaceshipNickNameComponent(
     override val parent: Entity,
-    private val nickName: String
+    val nickName: String
 ): CanvasContextRenderableComponent {
     override var context: CanvasRenderingContext2D? = null
 

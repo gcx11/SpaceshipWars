@@ -18,6 +18,7 @@ actual object SpaceshipFactory {
             addComponent(SpaceshipCrashComponent(this))
             addComponent(HealthComponent(this, 10))
             addComponent(DefaultDamagingComponent(this, 1))
+            addComponent(PlayerScoreComponent(this))
         }.apply {
             this.externalId = this.internalId
             this.tag = "Spaceship"

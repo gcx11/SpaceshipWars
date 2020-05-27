@@ -1,6 +1,5 @@
 package me.gcx11.spaceshipwars
 
-import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.html.respondHtml
@@ -26,6 +25,7 @@ import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ClientConnection
 import me.gcx11.spaceshipwars.packets.*
+import me.gcx11.spaceshipwars.spaceship.PlayerScoreComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceShipNickNameComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFireComponent
@@ -44,9 +44,10 @@ fun main() {
     embeddedServer(Netty, port = serverPort, host = serverIp) {
         install(WebSockets)
 
-        intercept(ApplicationCallPipeline.Features) {
+        // simulate network delay
+        /*intercept(ApplicationCallPipeline.Features) {
             delay(20)
-        }
+        }*/
 
         routing {
             get("/") {
@@ -148,7 +149,8 @@ fun main() {
                         }
                     }
 
-                    delay(20)
+                    // simulate network delay
+                    // delay(20)
                     send(Frame.Binary(true, serialize(client.getNextPacket())))
                 }
 
@@ -168,6 +170,7 @@ fun launchGameloop() {
     registerEventHandlers()
 
     var lastTime = getUnixTimeMillis()
+    var lastScoreUpdate = getUnixTimeMillis()
 
     GlobalScope.launch {
         while (true) {
@@ -215,6 +218,23 @@ fun launchGameloop() {
                 it.sendPacket(
                     EntityPositionPacket(positions)
                 )
+            }
+
+            // update scoreboard
+            val currentTime = getUnixTimeMillis()
+            if (currentTime - lastScoreUpdate > 5000) {
+                lastScoreUpdate = currentTime
+                val playerScoreComponents = World.entities.mapNotNull { it.getOptionalComponent<PlayerScoreComponent>() }
+                val scores = playerScoreComponents
+                    .sortedByDescending { it.score }
+                    .map { PlayerScore(it.parent.externalId, it.score) }
+                    .take(5)
+
+                playingClients.forEach {
+                    it.sendPacket(
+                        PlayerScorePacket(scores)
+                    )
+                }
             }
 
             globalEventQueue.unfreeze()

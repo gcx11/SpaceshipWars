@@ -2,9 +2,7 @@ package me.gcx11.spaceshipwars.spaceship
 
 import me.gcx11.spaceshipwars.Logger
 import me.gcx11.spaceshipwars.components.BehaviourComponent
-import me.gcx11.spaceshipwars.components.DefaultMoveComponent
 import me.gcx11.spaceshipwars.components.getRequiredSibling
-import me.gcx11.spaceshipwars.computeMouseDirection
 import me.gcx11.spaceshipwars.geometry.Vector2
 import me.gcx11.spaceshipwars.models.Entity
 import kotlin.math.abs

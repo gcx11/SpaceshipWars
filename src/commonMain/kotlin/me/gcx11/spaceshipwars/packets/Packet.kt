@@ -14,8 +14,10 @@ data class MoveRequestPacket(val clientId: UUID, val entityId: Long, val speed: 
 data class EntityRemovePacket(val entityId: Long): Packet(7)
 data class FirePacket(val clientId: UUID, val entityId: Long): Packet(8)
 data class BulletSpawnPacket(val entityId: Long, val x: Float, val y: Float, val direction: Float): Packet(9)
+data class PlayerScorePacket(val scores: List<PlayerScore>): Packet(10)
 
 data class EntityPosition(val entityId: Long, val x: Float, val y: Float, val direction: Float)
+data class PlayerScore(val entityId: Long, val score: Int)
 
 private val pool = IoBuffer.Pool
 
@@ -83,6 +85,15 @@ fun serialize(packet: Packet): ByteArray {
             writeFloat(packet.y)
             writeFloat(packet.direction)
         }
+
+        is PlayerScorePacket -> withBuffer {
+            writeHeader(packet)
+            writeInt(packet.scores.size)
+            for (entry in packet.scores) {
+                writeLong(entry.entityId)
+                writeInt(entry.score)
+            }
+        }
     }
 }
 
@@ -141,6 +152,15 @@ fun deserialize(byteArray: ByteArray): Packet? {
 
             9.toByte() -> {
                 BulletSpawnPacket(readLong(), readFloat(), readFloat(), readFloat())
+            }
+
+            10.toByte() -> {
+                val size = readInt()
+                val scores = (0 until size).map {
+                    PlayerScore(readLong(), readInt())
+                }
+
+                PlayerScorePacket(scores)
             }
 
             else -> null

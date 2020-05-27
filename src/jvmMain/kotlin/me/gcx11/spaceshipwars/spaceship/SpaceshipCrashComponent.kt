@@ -4,7 +4,9 @@ import me.gcx11.spaceshipwars.components.BehaviourComponent
 import me.gcx11.spaceshipwars.components.DamagingComponent
 import me.gcx11.spaceshipwars.components.DisposableComponent
 import me.gcx11.spaceshipwars.events.CollisionEvent
+import me.gcx11.spaceshipwars.events.EntityDeathEvent
 import me.gcx11.spaceshipwars.events.collisionEventHandler
+import me.gcx11.spaceshipwars.events.entityDeathEvent
 import me.gcx11.spaceshipwars.models.Entity
 import me.gcx11.spaceshipwars.models.World
 
@@ -29,6 +31,7 @@ class SpaceshipCrashComponent(
                 healthComponent.applyDamage(damagingComponent.damage)
                 if (!healthComponent.isAlive()) {
                     World.deleteLater(parent)
+                    entityDeathEvent(EntityDeathEvent(parent, other))
                 }
 
                 // TODO self-damage

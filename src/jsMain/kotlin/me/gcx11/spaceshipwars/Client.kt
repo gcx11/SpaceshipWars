@@ -21,6 +21,7 @@ import me.gcx11.spaceshipwars.networking.ServerConnection
 import me.gcx11.spaceshipwars.packets.*
 import me.gcx11.spaceshipwars.spaceship.MovePredictionComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
+import me.gcx11.spaceshipwars.spaceship.SpaceshipNickNameComponent
 import me.gcx11.spaceshipwars.time.getUnixTimeMillis
 import org.w3c.dom.*
 import kotlin.browser.document
@@ -28,6 +29,7 @@ import kotlin.browser.window
 import kotlin.math.atan2
 
 val serverConnection = ServerConnection()
+var scores = mutableListOf<Pair<String, Int>>()
 
 fun main() {
     window.onload = {
@@ -89,6 +91,11 @@ fun draw(context: CanvasRenderingContext2D) {
     context.fillText("Client id: ${serverConnection.id}", 0.0, 20.0)
     context.fillText("${serverConnection.clientState}", 0.0, 40.0)
     context.fillText("Ping ${serverConnection.ping}ms", 0.0, 60.0)
+
+    context.fillStyle = "cyan"
+    scores.withIndex().forEach { (entryId, entry) ->
+        context.fillText("${entry.first} ${entry.second}", 0.0, 100.0 + entryId * 20.0)
+    }
 
     if (serverConnection.clientState == ClientState.PLAYING) {
         val player = World.entities.find { it.getOptionalComponent<ClientComponent>()?.clientId == serverConnection.id }
@@ -297,6 +304,21 @@ fun registerEventHandlers() {
         if (packet is BulletSpawnPacket) {
             val bullet = BulletFactory.createBullet(packet.entityId, packet.x, packet.y, packet.direction)
             World.addLater(bullet)
+        }
+    }
+
+    packetEventHandler += { event ->
+        val packet = event.packet
+
+        if (packet is PlayerScorePacket) {
+            scores.clear()
+            packet.scores.forEach { entry ->
+                val nickNameComponent = World.entities.find { it.externalId == entry.entityId }?.getOptionalComponent<SpaceshipNickNameComponent>()
+
+                if (nickNameComponent != null) {
+                    scores.add(Pair(nickNameComponent.nickName, entry.score))
+                }
+            }
         }
     }
 

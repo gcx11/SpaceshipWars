@@ -27,6 +27,7 @@ object BulletFactory {
             )
             addComponent(DefaultCollidableComponent(this))
             addComponent(DefaultDamagingComponent(this, 1))
+            addComponent(BulletSourceComponent(this, shooter))
         }.apply {
             this.externalId = this.internalId
             this.tag = "Bullet"
