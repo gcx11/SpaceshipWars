@@ -8,8 +8,8 @@ val globalEventQueue = SwapQueue<Event>()
 
 object World {
     private val entityCollection = mutableListOf<Entity>()
-    private val entitiesToAdd = mutableListOf<Entity>()
-    private val entitiesToDelete = mutableListOf<Entity>()
+    private val entitiesToAdd = mutableSetOf<Entity>()
+    private val entitiesToDelete = mutableSetOf<Entity>()
 
     val entities: List<Entity> get() = entityCollection
 

@@ -1,8 +1,13 @@
 package me.gcx11.spaceshipwars.components
 
+import me.gcx11.spaceshipwars.geometry.Shape
 import me.gcx11.spaceshipwars.models.Entity
 
-class DefaultCollidableComponent(
+open class DefaultCollidableComponent(
     override val parent: Entity,
     override val collidedCollection: MutableCollection<CollidableComponent> = mutableListOf()
-) : CollidableComponent
+) : CollidableComponent {
+    override fun getShape(): Shape? {
+        return parent.getRequiredComponent<GeometricComponent>().shape
+    }
+}

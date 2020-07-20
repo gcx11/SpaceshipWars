@@ -1,5 +1,6 @@
 package me.gcx11.spaceshipwars.bullet
 
+import me.gcx11.spaceshipwars.bulletSpeed
 import me.gcx11.spaceshipwars.components.DefaultCollidableComponent
 import me.gcx11.spaceshipwars.components.DefaultDamagingComponent
 import me.gcx11.spaceshipwars.models.Entity
@@ -19,12 +20,7 @@ object BulletFactory {
                     shooterGeo.directionAngle
                 )
             )
-            addComponent(
-                MoveComponent(
-                    this,
-                    speed = shooterMove.speed + 100f
-                )
-            )
+            addComponent(MoveComponent(this, if (shooterMove.hasBoost) bulletSpeed * 2 else bulletSpeed))
             addComponent(DefaultCollidableComponent(this))
             addComponent(DefaultDamagingComponent(this, 1))
             addComponent(BulletSourceComponent(this, shooter))

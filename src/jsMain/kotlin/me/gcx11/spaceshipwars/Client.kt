@@ -12,7 +12,6 @@ import kotlinx.coroutines.awaitAnimationFrame
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.gcx11.spaceshipwars.background.BackgroundFactory
-import me.gcx11.spaceshipwars.background.BackgroundRenderableComponent
 import me.gcx11.spaceshipwars.bullet.BulletFactory
 import me.gcx11.spaceshipwars.components.*
 import me.gcx11.spaceshipwars.events.*
@@ -20,7 +19,10 @@ import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ServerConnection
 import me.gcx11.spaceshipwars.packets.*
+import me.gcx11.spaceshipwars.powerup.PowerUpFactory
+import me.gcx11.spaceshipwars.powerup.PowerUpType
 import me.gcx11.spaceshipwars.spaceship.MovePredictionComponent
+import me.gcx11.spaceshipwars.spaceship.ShieldComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
 import me.gcx11.spaceshipwars.spaceship.SpaceshipNickNameComponent
 import me.gcx11.spaceshipwars.time.getUnixTimeMillis
@@ -94,8 +96,9 @@ fun draw(context: CanvasRenderingContext2D) {
     context.fillText("Ping ${serverConnection.ping}ms", 0.0, 60.0)
 
     context.fillStyle = "cyan"
+    context.fillText("TOP FIVE PLAYERS", 0.0, 100.0)
     scores.withIndex().forEach { (entryId, entry) ->
-        context.fillText("${entry.first} ${entry.second}", 0.0, 100.0 + entryId * 20.0)
+        context.fillText("${entry.first} ${entry.second}", 0.0, 120.0 + entryId * 20.0)
     }
 
     if (serverConnection.clientState == ClientState.PLAYING) {
@@ -265,15 +268,11 @@ fun registerEventHandlers() {
             for (position in packet.positions) {
                 val entity = World.entities.find { it.externalId == position.entityId }
                 val geometricComponent = entity?.getOptionalComponent<GeometricComponent>()
-                val movePredictionComponent = entity?.getOptionalComponent<MovePredictionComponent>()
                 if (geometricComponent != null &&
-                    geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent &&
-                    movePredictionComponent != null) {
-                    movePredictionComponent.supplyServerData(position.x, position.y, position.direction)
+                    geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent) {
+                    entity.getOptionalComponent<MovePredictionComponent>()?.supplyServerData(position.x, position.y, position.direction, position.speed)
                 } else if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.bullet.GeometricComponent) {
-                    geometricComponent.x = position.x
-                    geometricComponent.y = position.y
-                    geometricComponent.directionAngle = position.direction
+                    entity.getOptionalComponent<me.gcx11.spaceshipwars.bullet.MovePredictionComponent>()?.supplyServerData(position.x, position.y)
                 }
             }
         }
@@ -305,7 +304,7 @@ fun registerEventHandlers() {
     packetEventHandler += { event ->
         val packet = event.packet
         if (packet is BulletSpawnPacket) {
-            val bullet = BulletFactory.createBullet(packet.entityId, packet.x, packet.y, packet.direction)
+            val bullet = BulletFactory.createBullet(packet.entityId, packet.x, packet.y, packet.speed, packet.direction)
             World.addLater(bullet)
         }
     }
@@ -322,6 +321,27 @@ fun registerEventHandlers() {
                     scores.add(Pair(nickNameComponent.nickName, entry.score))
                 }
             }
+        }
+    }
+
+    packetEventHandler += { event ->
+        val packet = event.packet
+
+        if (packet is PowerUpSpawnPacket) {
+            val powerUpType = PowerUpType.values().find { it.ordinal == packet.type } ?: PowerUpType.UNKNOWN
+
+            val powerUp = PowerUpFactory.create(packet.entityId, powerUpType, packet.x, packet.y)
+            World.addLater(powerUp)
+        }
+    }
+
+    packetEventHandler += { event ->
+        val packet = event.packet
+
+        if (packet is ActivateShieldPacket) {
+            val shieldComponent = World.entities.find { it.externalId == packet.entityId }?.getRequiredComponent<ShieldComponent>()
+
+            shieldComponent?.applyShield()
         }
     }
 

@@ -1,5 +1,6 @@
 package me.gcx11.spaceshipwars
 
+import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.html.respondHtml
@@ -16,15 +17,17 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.html.*
-import me.gcx11.spaceshipwars.components.BehaviourComponent
-import me.gcx11.spaceshipwars.components.ClientComponent
-import me.gcx11.spaceshipwars.components.CollidableComponent
-import me.gcx11.spaceshipwars.components.GeometricComponent
+import me.gcx11.spaceshipwars.components.*
 import me.gcx11.spaceshipwars.events.*
+import me.gcx11.spaceshipwars.geometry.Circle
 import me.gcx11.spaceshipwars.models.World
 import me.gcx11.spaceshipwars.models.globalEventQueue
 import me.gcx11.spaceshipwars.networking.ClientConnection
 import me.gcx11.spaceshipwars.packets.*
+import me.gcx11.spaceshipwars.powerup.PowerUpFactory
+import me.gcx11.spaceshipwars.powerup.PowerUpType
+import me.gcx11.spaceshipwars.powerup.PowerUpTypeComponent
+import me.gcx11.spaceshipwars.powerupmonitor.PowerUpMonitorFactory
 import me.gcx11.spaceshipwars.spaceship.PlayerScoreComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceShipNickNameComponent
 import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
@@ -46,7 +49,7 @@ fun main() {
 
         // simulate network delay
         /*intercept(ApplicationCallPipeline.Features) {
-            delay(20)
+            delay(100)
         }*/
 
         routing {
@@ -54,6 +57,7 @@ fun main() {
                 call.respondHtml {
                     head {
                         title("Spaceship Wars")
+                        meta("viewport", content = "width=device-width, initial-scale=1.0")
 
                         style {
                             unsafe {
@@ -150,7 +154,7 @@ fun main() {
                     }
 
                     // simulate network delay
-                    // delay(20)
+                    // delay(100)
                     send(Frame.Binary(true, serialize(client.getNextPacket())))
                 }
 
@@ -172,6 +176,8 @@ fun launchGameloop() {
     var lastTime = getUnixTimeMillis()
     var lastScoreUpdate = getUnixTimeMillis()
 
+    World.addLater(PowerUpMonitorFactory.create())
+
     GlobalScope.launch {
         while (true) {
             val delta = (getUnixTimeMillis() - lastTime) / 1000.0f
@@ -190,15 +196,17 @@ fun launchGameloop() {
 
                 // TODO use MoveEvent
                 val geometricComponent = entity.getOptionalComponent<GeometricComponent>()
+                val moveComponent = entity.getOptionalComponent<MoveComponent>()
+                val speed = moveComponent?.speed ?: 0f
                 if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.spaceship.GeometricComponent) {
-                    positions.add(EntityPosition(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle))
+                    positions.add(EntityPosition(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle, speed))
                 } else if (geometricComponent != null && geometricComponent is me.gcx11.spaceshipwars.bullet.GeometricComponent) {
-                    positions.add(EntityPosition(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle))
+                    positions.add(EntityPosition(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle, speed))
                 }
             }
 
             val collidables = World.entities
-                .mapNotNull { it.getOptionalComponent<CollidableComponent>() }
+                .flatMap { it.getAllComponents<CollidableComponent>() }
                 .onEach { it.clearAllCollided() }
 
             val collisionEvents = mutableListOf<CollisionEvent>()
@@ -208,7 +216,7 @@ fun launchGameloop() {
                         collidables[i].addCollided(collidables[j])
                         collidables[j].addCollided(collidables[i])
 
-                        collisionEvents.add(CollisionEvent(collidables[i].parent, collidables[j].parent))
+                        collisionEvents.add(CollisionEvent(collidables[i], collidables[j]))
                     }
                 }
             }
@@ -312,10 +320,33 @@ fun registerEventHandlers() {
         val entity = event.entity
 
         val geometricComponent = entity.getOptionalComponent<me.gcx11.spaceshipwars.bullet.GeometricComponent>()
+        val moveComponent = entity.getOptionalComponent<me.gcx11.spaceshipwars.bullet.MoveComponent>()
 
-        if (geometricComponent != null) {
+        if (geometricComponent != null && moveComponent != null) {
             playingClients.forEach {
-                it.sendPacket(BulletSpawnPacket(entity.externalId, geometricComponent.x, geometricComponent.y, geometricComponent.directionAngle))
+                it.sendPacket(
+                    BulletSpawnPacket(
+                        entity.externalId,
+                        geometricComponent.x,
+                        geometricComponent.y,
+                        moveComponent.speed,
+                        geometricComponent.directionAngle
+                    )
+                )
+            }
+        }
+    }
+
+    spawnEntityEventHandler += { event ->
+        val entity = event.entity
+
+        val geometricComponent = entity.getOptionalComponent<me.gcx11.spaceshipwars.powerup.GeometricComponent>()
+        val powerUpTypeComponent = entity.getOptionalComponent<PowerUpTypeComponent>()
+        val circle = geometricComponent?.shape
+
+        if (geometricComponent != null && powerUpTypeComponent != null && circle != null) {
+            playingClients.forEach {
+                it.sendPacket(PowerUpSpawnPacket(entity.externalId, powerUpTypeComponent.type.ordinal, circle.center.x, circle.center.y))
             }
         }
     }
@@ -354,6 +385,29 @@ private fun handleRespawnRequestPacket(packet: RespawnRequestPacket) {
             // TODO zero uuid?
             SpaceshipSpawnPacket(UUID.new(), entity.externalId, geometricComponent.x, geometricComponent.y, nickNameComponent.nickName)
         )
+    }
+
+    // send power-ups
+    for (entity in World.entities) {
+        val geometricComponent = entity.getOptionalComponent<me.gcx11.spaceshipwars.powerup.GeometricComponent>() ?: continue
+        val powerUpTypeComponent = entity.getOptionalComponent<PowerUpTypeComponent>() ?: continue
+
+        val circle = geometricComponent.shape as? Circle ?: continue
+
+        client.sendPacket(
+            PowerUpSpawnPacket(entity.externalId, powerUpTypeComponent.type.ordinal, circle.center.x, circle.center.y)
+        )
+    }
+
+    // send shield info
+    for (entity in World.entities) {
+        val shieldComponent = entity.getOptionalComponent<me.gcx11.spaceshipwars.spaceship.ShieldComponent>() ?: continue
+
+        if (shieldComponent.hasShield) {
+            client.sendPacket(
+                ActivateShieldPacket(entity.externalId, shieldComponent.currentShieldDuration)
+            )
+        }
     }
 
     val x = rnd.nextFloat() * 400.0f

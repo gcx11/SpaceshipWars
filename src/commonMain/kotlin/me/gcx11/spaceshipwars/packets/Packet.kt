@@ -4,6 +4,7 @@ import kotlinx.io.core.*
 import me.gcx11.spaceshipwars.UUID
 import me.gcx11.spaceshipwars.time.getUnixTimeMillis
 
+// packets
 sealed class Packet(val id: Byte, var timestamp: Long = getUnixTimeMillis())
 data class NoopPacket(val clientId: UUID): Packet(1)
 data class ClientJoinPacket(val clientId: UUID): Packet(2)
@@ -13,10 +14,13 @@ data class EntityPositionPacket(val positions: List<EntityPosition>): Packet(5)
 data class MoveRequestPacket(val clientId: UUID, val entityId: Long, val speed: Float, val direction: Float): Packet(6)
 data class EntityRemovePacket(val entityId: Long): Packet(7)
 data class FirePacket(val clientId: UUID, val entityId: Long): Packet(8)
-data class BulletSpawnPacket(val entityId: Long, val x: Float, val y: Float, val direction: Float): Packet(9)
+data class BulletSpawnPacket(val entityId: Long, val x: Float, val y: Float, val speed: Float, val direction: Float): Packet(9)
 data class PlayerScorePacket(val scores: List<PlayerScore>): Packet(10)
+data class PowerUpSpawnPacket(val entityId: Long, val type: Int, val x: Float, val y: Float): Packet(11)
+data class ActivateShieldPacket(val entityId: Long, val duration: Float): Packet(12)
 
-data class EntityPosition(val entityId: Long, val x: Float, val y: Float, val direction: Float)
+// containers
+data class EntityPosition(val entityId: Long, val x: Float, val y: Float, val direction: Float, val speed: Float)
 data class PlayerScore(val entityId: Long, val score: Int)
 
 private val pool = IoBuffer.Pool
@@ -56,6 +60,7 @@ fun serialize(packet: Packet): ByteArray {
                 writeFloat(position.x)
                 writeFloat(position.y)
                 writeFloat(position.direction)
+                writeFloat(position.speed)
             }
         }
 
@@ -83,6 +88,7 @@ fun serialize(packet: Packet): ByteArray {
             writeLong(packet.entityId)
             writeFloat(packet.x)
             writeFloat(packet.y)
+            writeFloat(packet.speed)
             writeFloat(packet.direction)
         }
 
@@ -93,6 +99,20 @@ fun serialize(packet: Packet): ByteArray {
                 writeLong(entry.entityId)
                 writeInt(entry.score)
             }
+        }
+
+        is PowerUpSpawnPacket -> withBuffer {
+            writeHeader(packet)
+            writeLong(packet.entityId)
+            writeInt(packet.type)
+            writeFloat(packet.x)
+            writeFloat(packet.y)
+        }
+
+        is ActivateShieldPacket -> withBuffer {
+            writeHeader(packet)
+            writeLong(packet.entityId)
+            writeFloat(packet.duration)
         }
     }
 }
@@ -132,7 +152,7 @@ fun deserialize(byteArray: ByteArray): Packet? {
             5.toByte() -> {
                 val size = readInt()
                 val positions = (0 until size).map {
-                    EntityPosition(readLong(), readFloat(), readFloat(), readFloat())
+                    EntityPosition(readLong(), readFloat(), readFloat(), readFloat(), readFloat())
                 }
 
                 EntityPositionPacket(positions)
@@ -151,7 +171,7 @@ fun deserialize(byteArray: ByteArray): Packet? {
             }
 
             9.toByte() -> {
-                BulletSpawnPacket(readLong(), readFloat(), readFloat(), readFloat())
+                BulletSpawnPacket(readLong(), readFloat(), readFloat(), readFloat(), readFloat())
             }
 
             10.toByte() -> {
@@ -161,6 +181,14 @@ fun deserialize(byteArray: ByteArray): Packet? {
                 }
 
                 PlayerScorePacket(scores)
+            }
+
+            11.toByte() -> {
+                PowerUpSpawnPacket(readLong(), readInt(), readFloat(), readFloat())
+            }
+
+            12.toByte() -> {
+                ActivateShieldPacket(readLong(), readFloat())
             }
 
             else -> null

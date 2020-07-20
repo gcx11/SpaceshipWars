@@ -6,6 +6,8 @@ import me.gcx11.spaceshipwars.components.ClientComponent
 import me.gcx11.spaceshipwars.components.GeometricComponent
 import me.gcx11.spaceshipwars.models.Entity
 import me.gcx11.spaceshipwars.models.World
+import me.gcx11.spaceshipwars.powerup.PowerUpType
+import me.gcx11.spaceshipwars.powerup.PowerUpTypeComponent
 import me.gcx11.spaceshipwars.serverConnection
 import org.w3c.dom.CanvasRenderingContext2D
 import kotlin.math.*
@@ -28,33 +30,44 @@ class SpaceshipRadarComponent(
         if (clientComponent.clientId != serverConnection.id) return
 
         for (entity in World.entities) {
-            val entityClientComponent = entity.getOptionalComponent<ClientComponent>() ?: continue
             val entityGeometricComponent = entity.getOptionalComponent<GeometricComponent>() ?: continue
 
-            if (entityClientComponent.clientId != clientComponent.clientId) {
-                val distance = hypot(geometricComponent.y - entityGeometricComponent.y, geometricComponent.x - entityGeometricComponent.x)
-                if (minDistance > distance) continue
+            val distance = hypot(geometricComponent.y - entityGeometricComponent.y, geometricComponent.x - entityGeometricComponent.x)
+            if (minDistance > distance) continue
 
-                val points = getPoints(geometricComponent, entityGeometricComponent)
-                ctx.beginPath()
+            val entityClientComponent = entity.getOptionalComponent<ClientComponent>()
+            val powerUpTypeComponent = entity.getOptionalComponent<PowerUpTypeComponent>()
 
-                val firstPoint = points.firstOrNull()
+            val color = if (entityClientComponent != null && entityClientComponent.clientId != clientComponent.clientId) {
+                "red"
+            } else if (powerUpTypeComponent != null && powerUpTypeComponent.type == PowerUpType.REGEN) {
+                "pink"
+            } else if (powerUpTypeComponent != null && powerUpTypeComponent.type == PowerUpType.BOOST) {
+                "yellow"
+            }  else if (powerUpTypeComponent != null && powerUpTypeComponent.type == PowerUpType.SHIELD) {
+                "cyan"
+            } else continue
 
-                if (firstPoint != null) {
-                    val (x, y) = Camera.project(firstPoint.first, firstPoint.second)
-                    ctx.moveTo(x.toDouble(), y.toDouble())
-                }
+            val points = getPoints(geometricComponent, entityGeometricComponent)
+            ctx.beginPath()
 
-                points.drop(1).forEach { (a, b) ->
-                    val (x, y) = Camera.project(a, b)
-                    ctx.lineTo(x.toDouble(), y.toDouble())
-                }
+            val firstPoint = points.firstOrNull()
 
-                ctx.closePath()
-
-                ctx.strokeStyle = "red"
-                ctx.stroke();
+            if (firstPoint != null) {
+                val (x, y) = Camera.project(firstPoint.first, firstPoint.second)
+                ctx.moveTo(x.toDouble(), y.toDouble())
             }
+
+            points.drop(1).forEach { (a, b) ->
+                val (x, y) = Camera.project(a, b)
+                ctx.lineTo(x.toDouble(), y.toDouble())
+            }
+
+            ctx.closePath()
+
+            ctx.strokeStyle = color
+            ctx.lineWidth = 1.0
+            ctx.stroke()
         }
     }
 

@@ -1,4 +1,4 @@
-package me.gcx11.spaceshipwars.spaceship
+package me.gcx11.spaceshipwars.bullet
 
 import me.gcx11.spaceshipwars.Logger
 import me.gcx11.spaceshipwars.components.BehaviourComponent
@@ -13,7 +13,7 @@ import kotlin.math.sin
 class MovePredictionComponent(
     override val parent: Entity,
     private val initialDirection: Float,
-    private val initialSpeed: Float
+    private val speed: Float
 ): BehaviourComponent {
     private val softThreshold = 10.0f
     private val hardThreshold = 50.0f
@@ -21,13 +21,11 @@ class MovePredictionComponent(
     private var lastServerX: Float? = null
     private var lastServerY: Float? = null
     private var lastServerDirection: Float? = null
-    private var lastServerSpeed: Float? = null
 
     private var correctionVector: Vector2 = Vector2(0.0f, 0.0f)
 
     override fun update(delta: Float) {
         val geometricComponent = parent.getRequiredComponent<GeometricComponent>()
-        geometricComponent.directionAngle = direction()
 
         updatePosition(delta)
 
@@ -38,11 +36,11 @@ class MovePredictionComponent(
             Logger.client.info { "Distance: $distance" }
 
             if (distance > hardThreshold) {
-                Logger.client.info { "Overriding client position" }
+                Logger.client.info { "Overriding bullet position" }
                 geometricComponent.x = lastServerX!!
                 geometricComponent.y = lastServerY!!
             } else if (distance > softThreshold) {
-                Logger.client.info { "Adjusting client position" }
+                Logger.client.info { "Adjusting bullet position" }
                 correctionVector = Vector2(lastServerX!! - geometricComponent.x, lastServerY!! - geometricComponent.y)
             }
 
@@ -51,31 +49,21 @@ class MovePredictionComponent(
         }
     }
 
-    fun direction(): Float {
-        return lastServerDirection ?: initialDirection
-    }
-
-    fun speed(): Float {
-        return lastServerSpeed ?: initialSpeed
-    }
-
-    fun supplyServerData(x: Float, y: Float, direction: Float, speed: Float) {
+    fun supplyServerData(x: Float, y: Float) {
         lastServerX = x
         lastServerY = y
-        lastServerDirection = direction
-        lastServerSpeed = speed
     }
 
     private fun updatePosition(delta: Float) {
         getRequiredSibling<me.gcx11.spaceshipwars.components.GeometricComponent>().let {
-            it.x += speed() * cos(direction()) * delta
-            it.y += speed() * sin(direction()) * delta
+            it.x += speed * cos(initialDirection) * delta
+            it.y += speed * sin(initialDirection) * delta
 
             if (correctionVector.length > 1.0) {
                 it.x += correctionVector.x * delta
                 it.y += correctionVector.y * delta
 
-               correctionVector = correctionVector.times(1.0f - delta)
+                correctionVector = correctionVector.times(1.0f - delta)
             }
         }
     }

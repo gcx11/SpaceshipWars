@@ -8,7 +8,7 @@ import kotlin.math.sin
 
 abstract class DefaultMoveComponent(
     override val parent: Entity,
-    override var speed: Float,
+    override val speed: Float,
 
     override val eventHandler: EventHandler<MoveEvent> = EventHandler()
 ) : MoveComponent {

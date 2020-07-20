@@ -5,5 +5,7 @@ interface HealthComponent: Component {
 
     fun applyDamage(damage: Int)
 
+    fun heal(amount: Int)
+
     fun isAlive(): Boolean
 }

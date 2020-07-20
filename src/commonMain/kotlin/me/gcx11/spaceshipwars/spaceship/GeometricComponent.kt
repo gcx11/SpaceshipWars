@@ -1,6 +1,7 @@
 package me.gcx11.spaceshipwars.spaceship
 
 import me.gcx11.spaceshipwars.components.GeometricComponent
+import me.gcx11.spaceshipwars.geometry.Circle
 import me.gcx11.spaceshipwars.geometry.ComposedFromTwo
 import me.gcx11.spaceshipwars.geometry.Point
 import me.gcx11.spaceshipwars.geometry.Triangle
@@ -14,9 +15,9 @@ class GeometricComponent(
     override var x: Float,
     override var y: Float,
 
-    val noseSize: Float,
-    val backSize: Float,
-    val wingSize: Float,
+    private val noseSize: Float,
+    private val backSize: Float,
+    private val wingSize: Float,
 
     var directionAngle: Float = 0f
 ) : GeometricComponent {

@@ -3,6 +3,7 @@ package me.gcx11.spaceshipwars.spaceship
 import me.gcx11.spaceshipwars.UUID
 import me.gcx11.spaceshipwars.components.ClientComponent
 import me.gcx11.spaceshipwars.models.Entity
+import me.gcx11.spaceshipwars.spaceshipSpeed
 import kotlin.math.PI
 
 actual object SpaceshipFactory {
@@ -13,7 +14,9 @@ actual object SpaceshipFactory {
             addComponent(SpaceshipRadarComponent(this))
             addComponent(ClientComponent(this, clientId))
             addComponent(SpaceshipNickNameComponent(this, nickName))
-            addComponent(MovePredictionComponent(this, PI.toFloat() / 2f))
+            addComponent(MovePredictionComponent(this, PI.toFloat() / 2f, spaceshipSpeed))
+            addComponent(ShieldComponent(this))
+            addComponent(SpaceshipShieldRenderableComponent(this))
         }
     }
 }

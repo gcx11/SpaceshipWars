@@ -3,6 +3,7 @@ package me.gcx11.spaceshipwars.geometry
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.hypot
+import kotlin.math.sqrt
 
 const val epsilon = 1e-13f
 
@@ -30,6 +31,7 @@ data class Point(
             is Triangle -> this.isPointInsideTriangle(shape)
             is ComposedFromTwo -> shape.intersectsWith(this)
             is Composed -> shape.intersectsWith(this)
+            is Circle -> this.isInside(shape)
         }
     }
 
@@ -63,11 +65,10 @@ data class Line(
     override fun intersectsWith(shape: Shape): Boolean {
         return when (shape) {
             is Point -> shape.intersectsWith(this)
-            is Line -> {
-                if (shape.intersectsWith(first)) return true
-                else if (shape.intersectsWith(second)) return true
-
-                this.isCrossing(shape)
+            is Line -> when {
+                shape.intersectsWith(first) -> true
+                shape.intersectsWith(second) -> true
+                else -> this.isCrossing(shape)
             }
             is Triangle -> {
                 val isTouchingEdges = shape.edges.any { edge ->
@@ -77,6 +78,11 @@ data class Line(
                 val isInside = shape.intersectsWith(first) || shape.intersectsWith(second)
 
                 isTouchingEdges || isInside
+            }
+            is Circle -> when {
+                shape.intersectsWith(first) -> true
+                shape.intersectsWith(second) -> true
+                else -> this.isCrossing(shape)
             }
             is ComposedFromTwo -> shape.intersectsWith(this)
             is Composed -> shape.intersectsWith(this)
@@ -120,6 +126,7 @@ data class Triangle(
 
                 isTouchingEdges || isInside
             }
+            is Circle -> shape.intersectsWith(this)
             is ComposedFromTwo -> shape.intersectsWith(this)
             is Composed -> shape.intersectsWith(this)
         }
@@ -142,18 +149,46 @@ data class Triangle(
     }
 }
 
+data class Circle(
+    var center: Point,
+    var radius: Float
+) : Shape() {
+    override fun intersectsWith(shape: Shape): Boolean {
+        return when (shape) {
+            is Point -> (center - shape).length <= radius
+            is Line -> shape.first.isInside(this) || shape.second.isInside(this) || shape.isCrossing(this)
+            is Triangle -> {
+                val verticleInside = shape.vertices.any {
+                    it.isInside(this)
+                }
+
+                val touchingByEdge = shape.edges.any {
+                    it.intersectsWith(this)
+                }
+
+                verticleInside || touchingByEdge
+            }
+            is Circle -> (shape.center - this.center).length <= shape.radius + this.radius
+            is ComposedFromTwo -> shape.intersectsWith(this)
+            is Composed -> shape.intersectsWith(this)
+        }
+    }
+
+    override fun points(): Iterable<Point> {
+        return listOf()
+    }
+
+    companion object {
+        val default get() = Circle(Point.default, 0f)
+    }
+}
+
 data class ComposedFromTwo(
     var first: Shape,
     var second: Shape
 ) : Shape() {
     override fun intersectsWith(shape: Shape): Boolean {
-        return when (shape) {
-            is Point -> shape.intersectsWith(first) || shape.intersectsWith(second)
-            is Line -> shape.intersectsWith(first) || shape.intersectsWith(second)
-            is Triangle -> shape.intersectsWith(first) || shape.intersectsWith(second)
-            is ComposedFromTwo -> shape.intersectsWith(first) || shape.intersectsWith(second)
-            is Composed -> shape.intersectsWith(first) || shape.intersectsWith(second)
-        }
+        return shape.intersectsWith(first) || shape.intersectsWith(second)
     }
 
     override fun points(): Iterable<Point> {
@@ -169,13 +204,7 @@ data class Composed(
     val subShapes: MutableList<Shape>
 ) : Shape() {
     override fun intersectsWith(shape: Shape): Boolean {
-        return when (shape) {
-            is Point -> subShapes.any { it.intersectsWith(shape) }
-            is Line -> subShapes.any { it.intersectsWith(shape) }
-            is Triangle -> subShapes.any { it.intersectsWith(shape) }
-            is ComposedFromTwo -> subShapes.any { it.intersectsWith(shape) }
-            is Composed -> subShapes.any { it.intersectsWith(shape) }
-        }
+        return subShapes.any { it.intersectsWith(shape) }
     }
 
     override fun points(): Iterable<Point> {
@@ -221,4 +250,30 @@ fun Line.isCrossing(line: Line): Boolean {
     if (u !in 0.0..1.0) return false
 
     return true
+}
+
+fun Point.isInside(circle: Circle): Boolean {
+    return (this - circle.center).length <= circle.radius
+}
+
+fun Line.isCrossing(circle: Circle): Boolean {
+    val d = this.second.x - this.first.x
+    val e = this.first.x - circle.center.x
+    val f = this.second.y - this.first.y
+    val g = this.first.y - circle.center.y
+
+    val a = d*d+f*f
+    val b = 2*(d*e+f*g)
+    val c = e*e+g*g-circle.radius*circle.radius
+
+    val disc = b*b - 4*a*c
+    if (disc < 0) return false
+
+    if (disc == 0f) return -b/(2*a) in (0.0..1.0)
+    val t = (-b-sqrt(disc))/(2*a)
+    if (t in 0.0..1.0) return true
+    val u = (-b+sqrt(disc))/(2*a)
+    if (u in 0.0..1.0) return true
+
+    return false
 }

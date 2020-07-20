@@ -1,8 +1,8 @@
 package me.gcx11.spaceshipwars.events
 
-import me.gcx11.spaceshipwars.models.Entity
+import me.gcx11.spaceshipwars.components.CollidableComponent
 
 class CollisionEvent(
-    val firstEntity: Entity,
-    val secondEntity: Entity
+    val first: CollidableComponent,
+    val second: CollidableComponent
 ): Event()

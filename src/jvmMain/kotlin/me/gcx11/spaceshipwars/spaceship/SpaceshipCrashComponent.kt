@@ -1,5 +1,6 @@
 package me.gcx11.spaceshipwars.spaceship
 
+import me.gcx11.spaceshipwars.bullet.BulletSourceComponent
 import me.gcx11.spaceshipwars.components.BehaviourComponent
 import me.gcx11.spaceshipwars.components.DamagingComponent
 import me.gcx11.spaceshipwars.components.DisposableComponent
@@ -18,17 +19,29 @@ class SpaceshipCrashComponent(
     }
 
     private fun onSpaceshipCrash(event: CollisionEvent) {
-        val firstEntity = event.firstEntity
-        val secondEntity = event.secondEntity
+        val first = event.first
+        val second = event.second
 
-        if (parent in listOf(firstEntity, secondEntity)) {
-            val other = if (parent == firstEntity) secondEntity else firstEntity
+        if (parent in listOf(first.parent, second.parent)) {
+            val other = if (parent == first.parent) { second.parent } else { first.parent }
 
             val healthComponent = parent.getRequiredComponent<HealthComponent>()
             val damagingComponent = other.getOptionalComponent<DamagingComponent>()
 
             if (damagingComponent != null && healthComponent.isAlive()) {
-                healthComponent.applyDamage(damagingComponent.damage)
+
+                // friendly fire
+                val bulletSourceComponent = other.getOptionalComponent<BulletSourceComponent>()
+                if (bulletSourceComponent?.parent == parent) return
+
+                if (parent == event.first.parent && event.first is ShieldComponent) {
+                    // no shield damage
+                } else if (parent == event.second.parent && event.second is ShieldComponent) {
+                    // no shield damage
+                } else {
+                    healthComponent.applyDamage(damagingComponent.damage)
+                }
+
                 if (!healthComponent.isAlive()) {
                     World.deleteLater(parent)
                     entityDeathEvent(EntityDeathEvent(parent, other))

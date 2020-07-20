@@ -34,10 +34,12 @@ open class ShapeRenderableComponent(
         when (fillStyle) {
             FillStyle.OUTLINE -> {
                 ctx.strokeStyle = color()
+                ctx.lineWidth = 2.0
                 ctx.stroke()
             }
 
             FillStyle.FULL -> {
+                ctx.strokeStyle = null
                 ctx.fillStyle = color()
                 ctx.fill()
             }
