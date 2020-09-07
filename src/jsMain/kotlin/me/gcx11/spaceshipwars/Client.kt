@@ -27,8 +27,8 @@ import me.gcx11.spaceshipwars.spaceship.SpaceshipFactory
 import me.gcx11.spaceshipwars.spaceship.SpaceshipNickNameComponent
 import me.gcx11.spaceshipwars.time.getUnixTimeMillis
 import org.w3c.dom.*
-import kotlin.browser.document
-import kotlin.browser.window
+import kotlinx.browser.document
+import kotlinx.browser.window
 import kotlin.math.atan2
 
 val serverConnection = ServerConnection()
